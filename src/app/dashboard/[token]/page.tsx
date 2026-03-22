@@ -5,11 +5,6 @@ import { useParams } from 'next/navigation';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-// ✅ Estas líneas fuerzan renderizado en cliente para rutas dinámicas
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-export const revalidate = 0;
-
 export default function ClientDashboard() {
   const params = useParams();
   const token = params.token as string;
@@ -146,7 +141,6 @@ export default function ClientDashboard() {
         {/* TAB: RESUMEN */}
         {activeTab === 'resumen' && (
           <div className="space-y-6">
-            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <p className="text-gray-500 text-sm">Total Invitados</p>
@@ -155,11 +149,6 @@ export default function ClientDashboard() {
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <p className="text-gray-500 text-sm">Confirmados</p>
                 <p className="text-3xl font-bold text-green-600">{confirmados.length}</p>
-                <p className="text-sm text-gray-500">
-                  {invitados.length > 0 
-                    ? Math.round((confirmados.length / invitados.length) * 100) 
-                    : 0}%
-                </p>
               </div>
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <p className="text-gray-500 text-sm">Pendientes</p>
@@ -177,52 +166,24 @@ export default function ClientDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-500 text-sm mb-1">Fecha</p>
-                  <p className="text-gray-900 font-semibold text-lg">
+                  <p className="text-gray-900 font-semibold">
                     {evento.configuracion?.fecha || 'Por definir'}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-sm mb-1">Hora</p>
-                  <p className="text-gray-900 font-semibold text-lg">
+                  <p className="text-gray-900 font-semibold">
                     {evento.configuracion?.hora || 'Por definir'}
                   </p>
                 </div>
                 <div className="md:col-span-2">
                   <p className="text-gray-500 text-sm mb-1">Lugar</p>
-                  <p className="text-gray-900 font-semibold text-lg">
+                  <p className="text-gray-900 font-semibold">
                     {evento.configuracion?.lugar || 'Por definir'}
                   </p>
                 </div>
               </div>
             </div>
-
-            {/* Progreso */}
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">📈 Progreso de Confirmaciones</h3>
-              <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-pink-500 to-purple-500 h-6 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${invitados.length > 0 ? (confirmados.length / invitados.length) * 100 : 0}%`
-                  }}
-                />
-              </div>
-              <p className="text-center text-gray-600 mt-3 font-medium">
-                {confirmados.length} de {invitados.length} invitados confirmados
-              </p>
-            </div>
-
-            {/* Mensaje */}
-            {evento.configuracion?.mensaje && (
-              <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 p-6 rounded-xl">
-                <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <span className="text-xl">💌</span> Mensaje de los Anfitriones
-                </h3>
-                <p className="text-gray-700 italic text-lg">
-                  "{evento.configuracion.mensaje}"
-                </p>
-              </div>
-            )}
           </div>
         )}
 
@@ -244,26 +205,20 @@ export default function ClientDashboard() {
                 </thead>
                 <tbody>
                   {invitados.map((invitado, index) => (
-                    <tr key={invitado.id} className="border-t hover:bg-gray-50 transition">
-                      <td className="px-6 py-4 text-gray-500 font-medium">{index + 1}</td>
-                      <td className="px-6 py-4 text-gray-900 font-medium">
-                        {invitado.nombre}
-                      </td>
+                    <tr key={invitado.id} className="border-t hover:bg-gray-50">
+                      <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+                      <td className="px-6 py-4 font-medium">{invitado.nombre}</td>
                       <td className="px-6 py-4">
                         {invitado.confirmado ? (
-                          <span className="text-green-600 font-semibold flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full w-fit">
-                            <span>✅</span> Confirmado
-                          </span>
+                          <span className="text-green-600 font-medium bg-green-50 px-3 py-1 rounded-full">✅ Confirmado</span>
                         ) : (
-                          <span className="text-orange-600 font-semibold flex items-center gap-2 bg-orange-50 px-3 py-1 rounded-full w-fit">
-                            <span>⏳</span> Pendiente
-                          </span>
+                          <span className="text-orange-600 font-medium bg-orange-50 px-3 py-1 rounded-full">⏳ Pendiente</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         {invitado.regaloSeleccionado ? (
-                          <span className="text-pink-600 font-medium flex items-center gap-2 bg-pink-50 px-3 py-1 rounded-full w-fit">
-                            <span>🎁</span> {getGiftName(invitado.regaloSeleccionado)}
+                          <span className="text-pink-600 font-medium bg-pink-50 px-3 py-1 rounded-full">
+                            🎁 {getGiftName(invitado.regaloSeleccionado)}
                           </span>
                         ) : (
                           <span className="text-gray-400">-</span>
@@ -274,85 +229,37 @@ export default function ClientDashboard() {
                 </tbody>
               </table>
             </div>
-            {invitados.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <p className="text-4xl mb-3">👥</p>
-                <p>No hay invitados registrados</p>
-              </div>
-            )}
           </div>
         )}
 
         {/* TAB: REGALOS */}
         {activeTab === 'regalos' && (
           <div className="space-y-6">
-            {/* Disponibles */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="p-6 border-b bg-green-50">
-                <h3 className="text-xl font-bold text-green-900 flex items-center gap-2">
-                  <span>✅</span> Regalos Disponibles ({regalosDisponibles.length})
-                </h3>
+                <h3 className="text-xl font-bold text-green-900">✅ Regalos Disponibles</h3>
               </div>
-              <div className="p-6">
-                {regalosDisponibles.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">
-                    No hay regalos disponibles en este momento
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {regalosDisponibles.map((regalo) => (
-                      <div 
-                        key={regalo.id} 
-                        className="border-2 border-green-200 rounded-lg p-4 hover:shadow-md transition"
-                      >
-                        <h4 className="font-bold text-gray-900 text-lg">{regalo.nombre}</h4>
-                        <p className="text-gray-600 text-sm mt-1">{regalo.descripcion}</p>
-                        <p className="text-green-600 font-bold mt-3 flex items-center gap-2">
-                          <span className="text-xl">📦</span> Stock: {regalo.stock}
-                        </p>
-                      </div>
-                    ))}
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {regalosDisponibles.map((regalo) => (
+                  <div key={regalo.id} className="border-2 border-green-200 rounded-lg p-4">
+                    <h4 className="font-bold text-gray-900">{regalo.nombre}</h4>
+                    <p className="text-gray-600 text-sm">{regalo.descripcion}</p>
+                    <p className="text-green-600 font-bold mt-2">📦 Stock: {regalo.stock}</p>
                   </div>
+                ))}
+                {regalosDisponibles.length === 0 && (
+                  <p className="text-gray-500 text-center col-span-2 py-4">No hay regalos disponibles</p>
                 )}
               </div>
             </div>
-
-            {/* Agotados */}
-            {regalosAgotados.length > 0 && (
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="p-6 border-b bg-red-50">
-                  <h3 className="text-xl font-bold text-red-900 flex items-center gap-2">
-                    <span>🚫</span> Regalos Agotados ({regalosAgotados.length})
-                  </h3>
-                </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {regalosAgotados.map((regalo) => (
-                      <div 
-                        key={regalo.id} 
-                        className="border-2 border-red-200 rounded-lg p-4 opacity-70 bg-gray-50"
-                      >
-                        <h4 className="font-bold text-gray-900 text-lg">{regalo.nombre}</h4>
-                        <p className="text-gray-600 text-sm mt-1">{regalo.descripcion}</p>
-                        <p className="text-red-600 font-bold mt-3 flex items-center gap-2">
-                          <span className="text-xl">❌</span> Agotado
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </main>
 
       {/* Footer */}
       <footer className="bg-white border-t mt-12 py-6">
-        <div className="max-w-6xl mx-auto text-center text-gray-600">
-          <p className="text-sm">
-            Hecho con 💕 para celebrar momentos especiales
-          </p>
+        <div className="text-center text-gray-600 text-sm">
+          Hecho con 💕 para celebrar momentos especiales
         </div>
       </footer>
     </div>
