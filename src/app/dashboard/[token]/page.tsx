@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format12Hour, formatDateSpanish } from '@/lib/utils';
 
@@ -17,49 +17,52 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchEventData();
-  }, [token]);
+    let unsubInvitados: (() => void) | null = null;
+    let unsubRegalos: (() => void) | null = null;
 
-  const fetchEventData = async () => {
-    try {
-      const eventosRef = collection(db, 'eventos');
-      const q = query(eventosRef, where('token', '==', token));
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        setEvento(null);
+    const init = async () => {
+      try {
+        const eventosRef = collection(db, 'eventos');
+        const q = query(eventosRef, where('token', '==', token));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          setEvento(null);
+          setLoading(false);
+          return;
+        }
+
+        const eventoDoc = snapshot.docs[0];
+        const eventoData = { id: eventoDoc.id, ...eventoDoc.data() };
+        setEvento(eventoData);
+
+        unsubInvitados = onSnapshot(
+          collection(db, 'eventos', eventoDoc.id, 'invitados'),
+          (snap) => {
+            setInvitados(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          }
+        );
+
+        unsubRegalos = onSnapshot(
+          collection(db, 'eventos', eventoDoc.id, 'regalos'),
+          (snap) => {
+            setRegalos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          }
+        );
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
         setLoading(false);
-        return;
       }
+    };
 
-      const eventoDoc = snapshot.docs[0];
-      const eventoData = { id: eventoDoc.id, ...eventoDoc.data() };
-      setEvento(eventoData);
+    init();
 
-      const invitadosSnapshot = await getDocs(
-        collection(db, 'eventos', eventoDoc.id, 'invitados')
-      );
-      const invitadosList = invitadosSnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      }));
-      setInvitados(invitadosList);
-
-      const regalosSnapshot = await getDocs(
-        collection(db, 'eventos', eventoDoc.id, 'regalos')
-      );
-      const regalosList = regalosSnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      }));
-      setRegalos(regalosList);
-
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      unsubInvitados?.();
+      unsubRegalos?.();
+    };
+  }, [token]);
 
   const getGiftName = (giftId: string) => {
     const gift = regalos.find(g => g.id === giftId);
@@ -101,7 +104,6 @@ export default function ClientDashboard() {
 
   const confirmados = invitados.filter(i => i.confirmado);
   const pendientes = invitados.filter(i => !i.confirmado);
-  const regalosAgotados = regalos.filter(r => r.stock === 0);
   const regalosDisponibles = regalos.filter(r => r.stock > 0);
 
   return (
@@ -208,7 +210,7 @@ export default function ClientDashboard() {
                   {invitados.map((invitado, index) => (
                     <tr key={invitado.id} className="border-t hover:bg-gray-50">
                       <td className="px-6 py-4 text-gray-500">{index + 1}</td>
-                      <td className="px-6 py-4 font-medium">{invitado.nombre}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{invitado.nombre}</td>
                       <td className="px-6 py-4">
                         {invitado.confirmado ? (
                           <span className="text-green-600 font-medium bg-green-50 px-3 py-1 rounded-full">✅ Confirmado</span>
@@ -237,19 +239,29 @@ export default function ClientDashboard() {
         {activeTab === 'regalos' && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="p-6 border-b bg-green-50">
-                <h3 className="text-xl font-bold text-green-900">✅ Regalos Disponibles</h3>
+              <div className="p-6 border-b bg-pink-50">
+                <h3 className="text-xl font-bold text-gray-900">🎁 Lista de Regalos</h3>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {regalosDisponibles.map((regalo) => (
-                  <div key={regalo.id} className="border-2 border-green-200 rounded-lg p-4">
-                    <h4 className="font-bold text-gray-900">{regalo.nombre}</h4>
-                    <p className="text-gray-600 text-sm">{regalo.descripcion}</p>
-                    <p className="text-green-600 font-bold mt-2">📦 Stock: {regalo.stock}</p>
-                  </div>
-                ))}
-                {regalosDisponibles.length === 0 && (
-                  <p className="text-gray-500 text-center col-span-2 py-4">No hay regalos disponibles</p>
+                {regalos.map((regalo) => {
+                  const disponible = regalo.stock > 0;
+                  return (
+                    <div key={regalo.id} className={`border-2 rounded-lg p-4 ${disponible ? 'border-green-200' : 'border-gray-200 opacity-60'}`}>
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-bold text-gray-900">{regalo.nombre}</h4>
+                        {!disponible && (
+                          <span className="text-xs font-semibold bg-red-100 text-red-600 px-2 py-1 rounded-full">No disponible</span>
+                        )}
+                      </div>
+                      <p className="text-gray-600 text-sm">{regalo.descripcion}</p>
+                      <p className={`font-bold mt-2 ${disponible ? 'text-green-600' : 'text-red-500'}`}>
+                        📦 Stock: {regalo.stock}
+                      </p>
+                    </div>
+                  );
+                })}
+                {regalos.length === 0 && (
+                  <p className="text-gray-500 text-center col-span-2 py-4">No hay regalos registrados</p>
                 )}
               </div>
             </div>
