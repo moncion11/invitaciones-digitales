@@ -92,7 +92,7 @@ export default function ClientDashboard() {
             El link que estás usando no es válido o el evento ya no existe.
           </p>
           <a
-            href="/"
+            href="/portafolio"
             className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold transition"
           >
             Volver al inicio
