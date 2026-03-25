@@ -280,88 +280,56 @@ Me gustaría más información sobre:
           </div>
         </section>
 
-        {/* Contact Form Section */}
+        {/* Custom Templates Section */}
         <section className="container mx-auto px-4 py-12">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-purple-100">
-            <div className="text-center mb-6">
-              <div className="text-5xl mb-4">💌</div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl mx-auto border-2 border-purple-100">
+            <div className="text-center mb-8">
+              <div className="text-5xl mb-4">🎨</div>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                ¿Tienes Preguntas?
+                ¿Quieres algo único?
               </h2>
-              <p className="text-gray-600">
-                Llena este formulario y te contactaré por WhatsApp con toda la información
+              <p className="text-gray-600 text-lg">
+                Creamos plantillas 100% personalizadas para tu evento
               </p>
             </div>
             
-            <form onSubmit={handleContactSubmit} className="space-y-4">
-              <div>
-                <label className="block text-gray-900 font-semibold mb-2">Nombre Completo *</label>
-                <input
-                  type="text"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                  placeholder="Tu nombre"
-                />
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+              <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                <div className="text-4xl mb-3">✏️</div>
+                <h3 className="font-bold text-gray-900 mb-2">Diseño a tu Medida</h3>
+                <p className="text-gray-600 text-sm">Envíanos tu idea, imagen o referencia y la convertimos en una invitación digital profesional</p>
               </div>
-              
-              <div>
-                <label className="block text-gray-900 font-semibold mb-2">Email *</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                  placeholder="tu@email.com"
-                />
+              <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl">
+                <div className="text-4xl mb-3">🖼️</div>
+                <h3 className="font-bold text-gray-900 mb-2">Tu Propia Imagen</h3>
+                <p className="text-gray-600 text-sm">¿Ya tienes el diseño hecho? Lo integramos con todas las funciones: confirmación, regalos y más</p>
               </div>
-              
-              <div>
-                <label className="block text-gray-900 font-semibold mb-2">WhatsApp *</label>
-                <input
-                  type="tel"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                  placeholder="829-123-4567"
-                />
+              <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                <div className="text-4xl mb-3">📄</div>
+                <h3 className="font-bold text-gray-900 mb-2">Plantilla HTML</h3>
+                <p className="text-gray-600 text-sm">Diseño web interactivo con animaciones, fondos dinámicos y total libertad creativa</p>
               </div>
-              
-              <div>
-                <label className="block text-gray-900 font-semibold mb-2">Diseño de Interés</label>
-                <select
-                  value={formData.diseño}
-                  onChange={(e) => setFormData({ ...formData, diseño: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+            </div>
+
+            <div className="text-center">
+              <p className="text-gray-500 mb-4">Contáctanos para cotizar tu diseño personalizado</p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('¡Hola! 👋 Me interesa una plantilla personalizada para mi evento en InvitaDigital')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105"
                 >
-                  <option value="">Selecciona un diseño (opcional)</option>
-                  {diseños.map(d => (
-                    <option key={d.id} value={d.nombre}>{d.nombre} - {d.precio}</option>
-                  ))}
-                </select>
+                  📱 Escribir por WhatsApp
+                </a>
+                <button
+                  onClick={() => setShowContactForm(true)}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105"
+                >
+                  📋 Llenar Formulario
+                </button>
               </div>
-              
-              <div>
-                <label className="block text-gray-900 font-semibold mb-2">Mensaje</label>
-                <textarea
-                  value={formData.mensaje}
-                  onChange={(e) => setFormData({ ...formData, mensaje: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 resize-none"
-                  placeholder="Cuéntame más sobre tu evento..."
-                />
-              </div>
-              
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-4 px-6 rounded-lg transition transform hover:scale-105 shadow-lg"
-              >
-                📱 Enviar por WhatsApp
-              </button>
-            </form>
+            </div>
           </div>
         </section>
 
