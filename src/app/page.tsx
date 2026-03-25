@@ -704,6 +704,16 @@ function InvitationContent() {
                   >
                     🎁 Ver Lista de Regalos
                   </button>
+                  {eventoData?.configuracion?.mapaUrl && (
+                    <a
+                      href={eventoData.configuracion.mapaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg transition transform hover:scale-105"
+                    >
+                      📍 Ver Ubicación del Evento
+                    </a>
+                  )}
                   <button
                     onClick={() => setCurrentSection('info')}
                     className="bg-gradient-to-r from-gray-600 to-gray-700 hover:opacity-90 text-white font-bold py-3 px-8 rounded-full shadow-lg transition"

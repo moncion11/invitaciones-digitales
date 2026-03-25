@@ -146,16 +146,6 @@ export default function PortfolioPreviewModal({ isOpen, onClose, design }: Props
         {/* Navigation Tabs */}
         <div className="bg-gray-50 border-b px-6 py-3 flex gap-2 overflow-x-auto">
           <button
-            onClick={() => setCurrentSection('info')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              currentSection === 'info'
-                ? `bg-gradient-to-r ${theme.primary} text-white`
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            📋 Información
-          </button>
-          <button
             onClick={() => setCurrentSection('rsvp')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
               currentSection === 'rsvp'
@@ -166,14 +156,14 @@ export default function PortfolioPreviewModal({ isOpen, onClose, design }: Props
             ✅ Confirmar
           </button>
           <button
-            onClick={() => setCurrentSection('confirmation')}
+            onClick={() => setCurrentSection('info')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
-              currentSection === 'confirmation'
+              currentSection === 'info'
                 ? `bg-gradient-to-r ${theme.primary} text-white`
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            🎉 Confirmado
+            📋 Información
           </button>
           <button
             onClick={() => setCurrentSection('gifts')}
@@ -184,6 +174,16 @@ export default function PortfolioPreviewModal({ isOpen, onClose, design }: Props
             }`}
           >
             🎁 Regalos
+          </button>
+          <button
+            onClick={() => setCurrentSection('confirmation')}
+            className={`px-4 py-2 rounded-lg font-medium transition ${
+              currentSection === 'confirmation'
+                ? `bg-gradient-to-r ${theme.primary} text-white`
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            🎉 Confirmado
           </button>
         </div>
 
@@ -279,12 +279,22 @@ export default function PortfolioPreviewModal({ isOpen, onClose, design }: Props
               <h2 className="text-3xl font-bold text-green-600">¡Confirmación Exitosa!</h2>
               <p className="text-gray-600">Gracias por confirmar tu asistencia.</p>
               
-              <button
-                onClick={() => setCurrentSection('gifts')}
-                className={`w-full bg-gradient-to-r ${theme.primary} hover:opacity-90 text-white font-bold py-4 rounded-full shadow-lg transition transform hover:scale-105`}
-              >
-                🎁 Ver Lista de Regalos
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setCurrentSection('gifts')}
+                  className={`w-full bg-gradient-to-r ${theme.primary} hover:opacity-90 text-white font-bold py-4 rounded-full shadow-lg transition transform hover:scale-105`}
+                >
+                  🎁 Ver Lista de Regalos
+                </button>
+                <a
+                  href="https://maps.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 rounded-full shadow-lg transition transform hover:scale-105"
+                >
+                  📍 Ver Ubicación del Evento
+                </a>
+              </div>
             </div>
           )}
 
