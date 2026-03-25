@@ -32,7 +32,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
 
   // ⚠️ CAMBIA ESTA CONTRASEÑA POR UNA SEGURA
-  const ADMIN_PASSWORD = 'InvitaDigital2024!';
+  const ADMIN_PASSWORD = 'Camd.0311';
 
   // Estado del dashboard
   const [eventos, setEventos] = useState<Evento[]>([]);
