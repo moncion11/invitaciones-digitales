@@ -31,6 +31,8 @@ export default function GuestsManager({ eventId }: Props) {
   const [showImportModal, setShowImportModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterConfirmed, setFilterConfirmed] = useState<'all' | 'confirmed' | 'pending'>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchGuests();
@@ -58,12 +60,50 @@ export default function GuestsManager({ eventId }: Props) {
       try {
         await deleteDoc(doc(db, 'eventos', eventId, 'invitados', guestId));
         showAlert('Invitado eliminado', 'success');
+        setSelectedIds(prev => { const next = new Set(prev); next.delete(guestId); return next; });
         fetchGuests();
       } catch (error) {
         console.error('Error deleting guest:', error);
         showAlert('Error al eliminar invitado', 'error');
       }
     });
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 0) return;
+    showConfirm(`¿Estás seguro de eliminar ${selectedIds.size} invitado(s)?`, async () => {
+      setDeleting(true);
+      try {
+        const promises = Array.from(selectedIds).map(id =>
+          deleteDoc(doc(db, 'eventos', eventId, 'invitados', id))
+        );
+        await Promise.all(promises);
+        showAlert(`${selectedIds.size} invitado(s) eliminado(s)`, 'success');
+        setSelectedIds(new Set());
+        fetchGuests();
+      } catch (error) {
+        console.error('Error deleting guests:', error);
+        showAlert('Error al eliminar invitados', 'error');
+      } finally {
+        setDeleting(false);
+      }
+    });
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredGuests.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredGuests.map(g => g.id)));
+    }
   };
 
   const filteredGuests = guests.filter(guest => {
@@ -93,6 +133,15 @@ export default function GuestsManager({ eventId }: Props) {
         </div>
         
         <div className="flex gap-3 flex-wrap">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              disabled={deleting}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md flex items-center gap-2 disabled:opacity-50"
+            >
+              🗑️ Eliminar ({selectedIds.size})
+            </button>
+          )}
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md"
@@ -173,6 +222,14 @@ export default function GuestsManager({ eventId }: Props) {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-purple-50 to-pink-50">
                 <tr>
+                  <th className="px-4 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filteredGuests.length && filteredGuests.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-5 h-5 rounded border-2 border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Nombre</th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Contacto</th>
                   <th className="px-6 py-4 text-center text-sm font-bold text-gray-900">Estado</th>
@@ -182,7 +239,15 @@ export default function GuestsManager({ eventId }: Props) {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredGuests.map((guest) => (
-                  <tr key={guest.id} className="hover:bg-gray-50 transition">
+                  <tr key={guest.id} className={`hover:bg-gray-50 transition ${selectedIds.has(guest.id) ? 'bg-purple-50' : ''}`}>
+                    <td className="px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(guest.id)}
+                        onChange={() => toggleSelect(guest.id)}
+                        className="w-5 h-5 rounded border-2 border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-semibold text-gray-900">{guest.nombre}</p>

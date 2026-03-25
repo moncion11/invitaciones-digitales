@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { format12Hour } from '@/lib/utils';
 
 export default function ClientDashboard() {
   const params = useParams();
@@ -173,7 +174,7 @@ export default function ClientDashboard() {
                 <div>
                   <p className="text-gray-500 text-sm mb-1">Hora</p>
                   <p className="text-gray-900 font-semibold">
-                    {evento.configuracion?.hora || 'Por definir'}
+                    {evento.configuracion?.hora ? format12Hour(evento.configuracion.hora) : 'Por definir'}
                   </p>
                 </div>
                 <div className="md:col-span-2">
