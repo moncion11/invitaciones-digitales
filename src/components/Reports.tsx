@@ -133,7 +133,6 @@ export default function Reports({ eventId }: Props) {
                     onClick={() => {
                       const link = `${window.location.origin}/?inv=${guest.id}`;
                       navigator.clipboard.writeText(link);
-                      alert(`📋 Link copiado: ${link}`);
                     }}
                     className="text-blue-600 hover:text-blue-800 underline text-sm font-medium"
                   >

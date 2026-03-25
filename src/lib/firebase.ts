@@ -1,5 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';  // ← Importar storage
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDVssjkzwuQf6V3OqfwzPdDuiZUZhy3uQs",
@@ -11,6 +13,8 @@ const firebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
 
-export { db, app };
+
+export const db = getFirestore(app);
+export const storage = getStorage(app);  // ← AGREGA ESTA LÍNEA
+export const auth = getAuth(app);

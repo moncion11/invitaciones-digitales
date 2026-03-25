@@ -1,245 +1,340 @@
 // src/components/GiftsManager.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import ImportGifts from './ImportGifts';
+import { useModal } from './Modal';
 
 interface Props {
-  eventId: string | null;
+  eventId: string;
+}
+
+interface Gift {
+  id: string;
+  nombre: string;
+  precio?: string;
+  stock: number;
+  imagen?: string;
+  disponible: boolean;
+  ilimitado?: boolean;
+  seleccionado?: boolean;
+  orden?: number;  // ✅ Agregado: campo orden
 }
 
 export default function GiftsManager({ eventId }: Props) {
-  const [gifts, setGifts] = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingGift, setEditingGift] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    nombre: '',
-    descripcion: '',
-    stock: 1,
-  });
+  const { showAlert, showConfirm } = useModal();
+  const [gifts, setGifts] = useState<Gift[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterAvailable, setFilterAvailable] = useState<'all' | 'available' | 'unavailable'>('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (eventId) {
-      fetchGifts();
-    }
+    fetchGifts();
   }, [eventId]);
 
   const fetchGifts = async () => {
-    if (!eventId) return;
-    
+    setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'eventos', eventId, 'regalos'));
-      const giftsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setGifts(giftsList);
+      const giftsRef = collection(db, 'eventos', eventId, 'regalos');
+      const snapshot = await getDocs(giftsRef);
+      const giftsList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Gift[];
+      
+      // ✅ Ordenar por campo 'orden' si existe
+      const sortedGifts = giftsList.sort((a, b) => {
+        const ordenA = a.orden ?? 999999;
+        const ordenB = b.orden ?? 999999;
+        return ordenA - ordenB;
+      });
+      
+      setGifts(sortedGifts);
     } catch (error) {
       console.error('Error fetching gifts:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eventId) return;
-    
-    try {
-      if (editingGift) {
-        await updateDoc(doc(db, 'eventos', eventId, 'regalos', editingGift.id), {
-          nombre: formData.nombre,
-          descripcion: formData.descripcion,
-          stock: parseInt(formData.stock.toString()),
-          disponible: parseInt(formData.stock.toString()) > 0,
-        });
-        alert('✅ Regalo actualizado');
-      } else {
-        await addDoc(collection(db, 'eventos', eventId, 'regalos'), {
-          nombre: formData.nombre,
-          descripcion: formData.descripcion,
-          stock: parseInt(formData.stock.toString()),
-          disponible: parseInt(formData.stock.toString()) > 0,
-        });
-        alert('✅ Regalo creado');
+  const handleDeleteGift = (giftId: string, giftName: string) => {
+    showConfirm(`¿Estás seguro de eliminar "${giftName}"?`, async () => {
+      try {
+        await deleteDoc(doc(db, 'eventos', eventId, 'regalos', giftId));
+        showAlert('Regalo eliminado', 'success');
+        setSelectedIds(prev => { const next = new Set(prev); next.delete(giftId); return next; });
+        fetchGifts();
+      } catch (error) {
+        console.error('Error deleting gift:', error);
+        showAlert('Error al eliminar regalo', 'error');
       }
-
-      resetForm();
-      fetchGifts();
-    } catch (error) {
-      console.error('Error saving gift:', error);
-      alert('❌ Error al guardar');
-    }
-  };
-
-  const editGift = (gift: any) => {
-    setEditingGift(gift);
-    setFormData({
-      nombre: gift.nombre,
-      descripcion: gift.descripcion,
-      stock: gift.stock,
     });
-    setShowForm(true);
   };
 
-  const deleteGift = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este regalo?')) return;
-    if (!eventId) return;
-    
-    try {
-      await deleteDoc(doc(db, 'eventos', eventId, 'regalos', id));
-      fetchGifts();
-      alert('✅ Regalo eliminado');
-    } catch (error) {
-      console.error('Error deleting gift:', error);
-      alert('❌ Error al eliminar');
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 0) return;
+    showConfirm(`¿Estás seguro de eliminar ${selectedIds.size} regalo(s)?`, async () => {
+      setDeleting(true);
+      try {
+        const promises = Array.from(selectedIds).map(id =>
+          deleteDoc(doc(db, 'eventos', eventId, 'regalos', id))
+        );
+        await Promise.all(promises);
+        showAlert(`${selectedIds.size} regalo(s) eliminado(s)`, 'success');
+        setSelectedIds(new Set());
+        fetchGifts();
+      } catch (error) {
+        console.error('Error deleting gifts:', error);
+        showAlert('Error al eliminar regalos', 'error');
+      } finally {
+        setDeleting(false);
+      }
+    });
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredGifts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredGifts.map(g => g.id)));
     }
   };
 
-  const resetForm = () => {
-    setShowForm(false);
-    setEditingGift(null);
-    setFormData({ nombre: '', descripcion: '', stock: 1 });
+  const handleToggleDisponibilidad = async (giftId: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'eventos', eventId, 'regalos', giftId), {
+        disponible: !currentStatus
+      });
+      showAlert('Disponibilidad actualizada', 'success');
+      fetchGifts();
+    } catch (error) {
+      console.error('Error updating gift:', error);
+      showAlert('Error al actualizar', 'error');
+    }
   };
 
-  if (!eventId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-4xl mb-4">🎁</p>
-        <p className="text-gray-600 text-lg">Selecciona un evento para gestionar regalos</p>
-      </div>
-    );
-  }
+  const filteredGifts = gifts.filter(gift => {
+    const matchesSearch = gift.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilter = filterAvailable === 'all' ||
+                         (filterAvailable === 'available' && gift.disponible) ||
+                         (filterAvailable === 'unavailable' && !gift.disponible);
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  const availableCount = gifts.filter(g => g.disponible).length;
+  const selectedCount = gifts.filter(g => g.seleccionado).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-900">🎁 Gestionar Regalos</h2>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg transition font-semibold shadow-md"
-        >
-          + Agregar Regalo
-        </button>
+      {/* Header con Botones */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">🎁 Lista de Regalos</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            {gifts.length} regalos • {availableCount} disponibles • {selectedCount} seleccionados
+          </p>
+        </div>
+        
+        <div className="flex gap-3 flex-wrap">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              disabled={deleting}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md flex items-center gap-2 disabled:opacity-50"
+            >
+              🗑️ Eliminar ({selectedIds.size})
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md"
+          >
+            ➕ Agregar Regalo
+          </button>
+          
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition shadow-md flex items-center gap-2"
+          >
+            📊 Importar Excel
+          </button>
+        </div>
       </div>
 
-      {showForm && (
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-          <h3 className="text-xl font-bold mb-6 text-gray-900 border-b pb-3">
-            {editingGift ? '✏️ Editar Regalo' : '🎁 Nuevo Regalo'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-gray-900 font-semibold mb-2">Nombre del regalo</label>
-              <input
-                type="text"
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900"
-                placeholder="Ej: Silla de Auto"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-gray-900 font-semibold mb-2">Descripción</label>
-              <textarea
-                value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900"
-                placeholder="Ej: Marca X, color gris, talla única"
-                rows={3}
-              />
-            </div>
-            <div>
-              <label className="block text-gray-900 font-semibold mb-2">Stock (cantidad)</label>
-              <input
-                type="number"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900"
-                min="0"
-                required
-              />
-              <p className="text-sm text-gray-600 mt-1">💡 Si es 0, el regalo aparecerá como "Agotado"</p>
-            </div>
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition font-semibold shadow-md"
-              >
-                {editingGift ? '💾 Actualizar' : '💾 Guardar'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-3 rounded-lg transition font-semibold"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
+      {/* Filtros y Búsqueda */}
+      <div className="bg-white p-4 rounded-xl shadow-md border-2 border-gray-200">
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">🔍 Buscar</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Nombre del regalo..."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">📋 Filtrar por</label>
+            <select
+              value={filterAvailable}
+              onChange={(e) => setFilterAvailable(e.target.value as any)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+            >
+              <option value="all">Todos los regalos</option>
+              <option value="available">✅ Disponibles</option>
+              <option value="unavailable">❌ No disponibles</option>
+            </select>
+          </div>
         </div>
+      </div>
+
+      {/* Lista de Regalos */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4 animate-spin">⏳</div>
+          <p className="text-gray-600 text-lg">Cargando regalos...</p>
+        </div>
+      ) : filteredGifts.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="text-6xl mb-4">🎁</div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No hay regalos</h3>
+          <p className="text-gray-600 mb-6">
+            {searchTerm || filterAvailable !== 'all' 
+              ? 'No hay resultados para tu búsqueda' 
+              : 'Agrega tu primer regalo o importa desde Excel'}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transition"
+            >
+              ➕ Agregar Regalo
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition"
+            >
+              📊 Importar Excel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+        <div className="mb-4 flex items-center gap-3">
+          <button
+            onClick={toggleSelectAll}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition text-sm border border-gray-300"
+          >
+            {selectedIds.size === filteredGifts.length && filteredGifts.length > 0 ? '☑️ Deseleccionar todos' : '☐ Seleccionar todos'}
+          </button>
+          {selectedIds.size > 0 && (
+            <span className="text-sm text-gray-600">{selectedIds.size} seleccionado(s)</span>
+          )}
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredGifts.map((gift) => (
+            <div
+              key={gift.id}
+              onClick={() => toggleSelect(gift.id)}
+              className={`bg-white rounded-xl shadow-md p-6 border-2 transition cursor-pointer ${
+                selectedIds.has(gift.id)
+                  ? 'border-blue-500 ring-2 ring-blue-200'
+                  : gift.disponible 
+                    ? 'border-purple-200 hover:shadow-lg' 
+                    : 'border-gray-200 opacity-60'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(gift.id)}
+                    onChange={() => toggleSelect(gift.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <div className="text-5xl">{gift.imagen || '🎁'}</div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  gift.disponible 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {gift.disponible ? '✅ Disponible' : '❌ Agotado'}
+                </span>
+              </div>
+              
+              <h3 className="font-bold text-gray-900 text-lg mb-3">{gift.nombre}</h3>
+              
+              {/* Mostrar Stock */}
+<div className="mb-4">
+  {gift.ilimitado ? (
+    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+      ♾️ Stock Ilimitado
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800">
+      📦 Stock: {gift.stock}
+    </span>
+  )}
+</div>
+              
+              {gift.seleccionado && (
+                <div className="mb-4">
+                  <span className="inline-flex items-center gap-1 text-sm text-purple-600 font-semibold">
+                    🎯 Seleccionado por invitado
+                  </span>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleToggleDisponibilidad(gift.id, gift.disponible); }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+                    gift.disponible
+                      ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                      : 'bg-green-100 text-green-800 hover:bg-green-200'
+                  }`}
+                >
+                  {gift.disponible ? '🚫 Marcar Agotado' : '✅ Marcar Disponible'}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeleteGift(gift.id, gift.nombre); }}
+                  className="px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition text-sm font-semibold"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
 
-      {/* Lista de regalos */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Nombre</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Descripción</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Stock</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Estado</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gifts.map((gift) => (
-                <tr key={gift.id} className="border-t hover:bg-gray-50 transition">
-                  <td className="px-6 py-4 text-gray-900 font-semibold">{gift.nombre}</td>
-                  <td className="px-6 py-4 text-gray-700">{gift.descripcion}</td>
-                  <td className="px-6 py-4">
-                    <span className={`font-bold text-lg ${gift.stock <= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {gift.stock}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {gift.disponible ? (
-                      <span className="text-green-600 font-semibold flex items-center gap-2">
-                        <span className="text-xl">✅</span> Disponible
-                      </span>
-                    ) : (
-                      <span className="text-red-600 font-semibold flex items-center gap-2">
-                        <span className="text-xl">🚫</span> Agotado
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => editGift(gift)}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1"
-                      >
-                        <span>✏️</span> Editar
-                      </button>
-                      <button
-                        onClick={() => deleteGift(gift.id)}
-                        className="text-red-600 hover:text-red-800 font-medium text-sm flex items-center gap-1"
-                      >
-                        <span>🗑️</span> Eliminar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {gifts.length === 0 && (
-          <div className="text-center py-12 text-gray-600">
-            <p className="text-4xl mb-3">🎁</p>
-            <p className="text-lg">No hay regalos registrados</p>
-            <p className="text-sm mt-2">Haz clic en "Agregar Regalo" para comenzar</p>
-          </div>
-        )}
-      </div>
+      {/* Modal de Importación */}
+      {showImportModal && (
+        <ImportGifts
+          eventId={eventId}
+          onImportComplete={fetchGifts}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
     </div>
   );
 }

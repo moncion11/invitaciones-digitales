@@ -1,206 +1,250 @@
 // src/components/GuestsManager.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import ImportGuests from './ImportGuests';
+import { useModal } from './Modal';
 
 interface Props {
-  eventId: string | null;
+  eventId: string;
+}
+
+interface Guest {
+  id: string;
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  familia?: string;
+  confirmado: boolean;
+  regaloSeleccionado?: string | null;
+  fechaConfirmacion?: any;
+  fechaCreacion?: any;
+  tipo?: string;
 }
 
 export default function GuestsManager({ eventId }: Props) {
-  const [guests, setGuests] = useState<any[]>([]);
-  const [newGuestName, setNewGuestName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const { showAlert, showConfirm } = useModal();
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterConfirmed, setFilterConfirmed] = useState<'all' | 'confirmed' | 'pending'>('all');
 
   useEffect(() => {
-    if (eventId) {
-      fetchGuests();
-    }
+    fetchGuests();
   }, [eventId]);
 
   const fetchGuests = async () => {
-    if (!eventId) return;
-    
+    setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'eventos', eventId, 'invitados'));
-      const guestsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const guestsRef = collection(db, 'eventos', eventId, 'invitados');
+      const snapshot = await getDocs(guestsRef);
+      const guestsList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Guest[];
       setGuests(guestsList);
     } catch (error) {
       console.error('Error fetching guests:', error);
-    }
-  };
-
-  const addGuest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eventId || !newGuestName.trim()) return;
-
-    setLoading(true);
-    try {
-      await addDoc(collection(db, 'eventos', eventId, 'invitados'), {
-        nombre: newGuestName,
-        confirmado: false,
-        regaloSeleccionado: null,
-        fechaCreacion: new Date().toISOString(),
-      });
-
-      setNewGuestName('');
-      setShowForm(false);
-      fetchGuests();
-      alert('✅ Invitado creado exitosamente');
-    } catch (error) {
-      console.error('Error adding guest:', error);
-      alert('❌ Error al crear invitado');
     } finally {
       setLoading(false);
     }
   };
 
-  const copyLink = (token: string) => {
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/?inv=${token}`;
-    navigator.clipboard.writeText(link);
-    alert(`📋 Link copiado al portapapeles:\n\n${link}`);
+  const handleDeleteGuest = (guestId: string, guestName: string) => {
+    showConfirm(`¿Estás seguro de eliminar a "${guestName}"?`, async () => {
+      try {
+        await deleteDoc(doc(db, 'eventos', eventId, 'invitados', guestId));
+        showAlert('Invitado eliminado', 'success');
+        fetchGuests();
+      } catch (error) {
+        console.error('Error deleting guest:', error);
+        showAlert('Error al eliminar invitado', 'error');
+      }
+    });
   };
 
-  const deleteGuest = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este invitado? Esta acción no se puede deshacer.')) return;
-    if (!eventId) return;
+  const filteredGuests = guests.filter(guest => {
+    const matchesSearch = guest.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         guest.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         guest.telefono?.includes(searchTerm);
     
-    try {
-      await deleteDoc(doc(db, 'eventos', eventId, 'invitados', id));
-      fetchGuests();
-      alert('✅ Invitado eliminado');
-    } catch (error) {
-      console.error('Error deleting guest:', error);
-      alert('❌ Error al eliminar');
-    }
-  };
+    const matchesFilter = filterConfirmed === 'all' ||
+                         (filterConfirmed === 'confirmed' && guest.confirmado) ||
+                         (filterConfirmed === 'pending' && !guest.confirmado);
+    
+    return matchesSearch && matchesFilter;
+  });
 
-  if (!eventId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-4xl mb-4">📋</p>
-        <p className="text-gray-600 text-lg">Selecciona un evento para gestionar invitados</p>
-      </div>
-    );
-  }
+  const confirmedCount = guests.filter(g => g.confirmado).length;
+  const pendingCount = guests.filter(g => !g.confirmado).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-900">👥 Gestionar Invitados</h2>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg transition font-semibold shadow-md"
-        >
-          + Agregar Invitado
-        </button>
+      {/* Header con Botones */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">👥 Invitados</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            {guests.length} invitados • {confirmedCount} confirmados • {pendingCount} pendientes
+          </p>
+        </div>
+        
+        <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md"
+          >
+            ➕ Agregar Invitado
+          </button>
+          
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition shadow-md flex items-center gap-2"
+          >
+            📊 Importar Excel
+          </button>
+        </div>
       </div>
 
-      {showForm && (
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-          <h3 className="text-xl font-bold mb-6 text-gray-900 border-b pb-3">Nuevo Invitado</h3>
-          <form onSubmit={addGuest} className="space-y-5">
-            <div>
-              <label className="block text-gray-900 font-semibold mb-2">Nombre completo</label>
-              <input
-                type="text"
-                value={newGuestName}
-                onChange={(e) => setNewGuestName(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900"
-                placeholder="Ej: María González"
-                required
-              />
-            </div>
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition disabled:opacity-50 font-semibold shadow-md"
-              >
-                {loading ? 'Guardando...' : '💾 Guardar'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-3 rounded-lg transition font-semibold"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
+      {/* Filtros y Búsqueda */}
+      <div className="bg-white p-4 rounded-xl shadow-md border-2 border-gray-200">
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">🔍 Buscar</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Nombre, email o teléfono..."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">📋 Filtrar por</label>
+            <select
+              value={filterConfirmed}
+              onChange={(e) => setFilterConfirmed(e.target.value as any)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+            >
+              <option value="all">Todos los invitados</option>
+              <option value="confirmed">✅ Confirmados</option>
+              <option value="pending">⏳ Pendientes</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de Invitados */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4 animate-spin">⏳</div>
+          <p className="text-gray-600 text-lg">Cargando invitados...</p>
+        </div>
+      ) : filteredGuests.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="text-6xl mb-4">👥</div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No hay invitados</h3>
+          <p className="text-gray-600 mb-6">
+            {searchTerm || filterConfirmed !== 'all' 
+              ? 'No hay resultados para tu búsqueda' 
+              : 'Agrega tu primer invitado o importa desde Excel'}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transition"
+            >
+              ➕ Agregar Invitado
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition"
+            >
+              📊 Importar Excel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-purple-50 to-pink-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Nombre</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-gray-900">Contacto</th>
+                  <th className="px-6 py-4 text-center text-sm font-bold text-gray-900">Estado</th>
+                  <th className="px-6 py-4 text-center text-sm font-bold text-gray-900">Regalo</th>
+                  <th className="px-6 py-4 text-center text-sm font-bold text-gray-900">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredGuests.map((guest) => (
+                  <tr key={guest.id} className="hover:bg-gray-50 transition">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-semibold text-gray-900">{guest.nombre}</p>
+                        {guest.familia && (
+                          <p className="text-sm text-gray-500">👨‍👩‍👧‍👦 {guest.familia}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        {guest.email && (
+                          <p className="text-gray-600">📧 {guest.email}</p>
+                        )}
+                        {guest.telefono && (
+                          <p className="text-gray-600">📱 {guest.telefono}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {guest.confirmado ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                          ✅ Confirmado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
+                          ⏳ Pendiente
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {guest.regaloSeleccionado ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800">
+                          🎁 Seleccionado
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => handleDeleteGuest(guest.id, guest.nombre)}
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1 rounded-lg transition text-sm font-medium"
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Lista de invitados */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Nombre</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Estado</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Regalo</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Link</th>
-                <th className="px-6 py-4 text-left text-gray-900 font-bold">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {guests.map((guest) => (
-                <tr key={guest.id} className="border-t hover:bg-gray-50 transition">
-                  <td className="px-6 py-4 text-gray-900 font-medium">{guest.nombre}</td>
-                  <td className="px-6 py-4">
-                    {guest.confirmado ? (
-                      <span className="text-green-600 font-semibold flex items-center gap-2">
-                        <span className="text-xl">✅</span> Confirmado
-                      </span>
-                    ) : (
-                      <span className="text-orange-600 font-semibold flex items-center gap-2">
-                        <span className="text-xl">⏳</span> Pendiente
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    {guest.regaloSeleccionado ? (
-                      <span className="text-pink-600 font-semibold flex items-center gap-2">
-                        <span className="text-xl">🎁</span> Seleccionado
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => copyLink(guest.id)}
-                      className="text-blue-600 hover:text-blue-800 underline font-medium text-sm"
-                    >
-                      📋 Copiar Link
-                    </button>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => deleteGuest(guest.id)}
-                      className="text-red-600 hover:text-red-800 font-medium text-sm flex items-center gap-1"
-                    >
-                      <span>🗑️</span> Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {guests.length === 0 && (
-          <div className="text-center py-12 text-gray-600">
-            <p className="text-4xl mb-3">👥</p>
-            <p className="text-lg">No hay invitados registrados</p>
-            <p className="text-sm mt-2">Haz clic en "Agregar Invitado" para comenzar</p>
-          </div>
-        )}
-      </div>
+      {/* Modal de Importación */}
+      {showImportModal && (
+        <ImportGuests
+          eventId={eventId}
+          onImportComplete={fetchGuests}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
     </div>
   );
 }

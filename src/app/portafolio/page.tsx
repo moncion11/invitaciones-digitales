@@ -1,460 +1,493 @@
 // src/app/portafolio/page.tsx
 'use client';
-import Link from 'next/link';
 import { useState } from 'react';
+import PortfolioPreviewModal from '@/components/PortfolioPreviewModal';
 
 const diseños = [
   {
     id: 'rosa-clasico',
     nombre: 'Rosa Clásico',
-    descripción: 'Elegante y tradicional con tonos rosas y púrpuras. Perfecto para baby showers clásicos.',
-    colores: 'from-pink-300 to-purple-300',
-    preview: '🎀',
-    popular: true,
-    características: ['Tipografía elegante', 'Degradado suave', 'Iconos decorativos'],
+    descripcion: 'Elegante y tierno con tonos rosados y detalles en dorado',
+    precio: 'Desde RD$ 1,500',
+    icono: '🎀',
+    colores: ['from-pink-400', 'to-pink-600'],
+    caracteristicas: ['Invitación digital', 'Confirmación de asistencia', 'Lista de regalos', 'Diseño responsivo'],
+    categorias: ['baby', 'cumpleanos', 'bodas', '15-anos'],
   },
   {
     id: 'azul-bebe',
     nombre: 'Azul Bebé',
-    descripción: 'Dulce y suave en tonos azules. Ideal para celebrar la llegada de un niño.',
-    colores: 'from-blue-300 to-cyan-300',
-    preview: '👶',
-    popular: false,
-    características: ['Tonos relajantes', 'Diseño minimalista', 'Fácil lectura'],
+    descripcion: 'Fresco y moderno con tonos azules y celestes',
+    precio: 'Desde RD$ 1,500',
+    icono: '⭐',
+    colores: ['from-blue-400', 'to-cyan-600'],
+    caracteristicas: ['Invitación digital', 'Confirmación de asistencia', 'Lista de regalos', 'Diseño responsivo'],
+    categorias: ['baby', 'cumpleanos', 'graduacion', 'corporativo'],
   },
   {
     id: 'dorado-lujo',
     nombre: 'Dorado Lujo',
-    descripción: 'Elegante y sofisticado con detalles dorados. Para eventos premium.',
-    colores: 'from-yellow-300 to-amber-400',
-    preview: '✨',
-    popular: true,
-    características: ['Acabado premium', 'Detalles brillantes', 'Estilo exclusivo'],
+    descripcion: 'Premium y sofisticado con acabados dorados',
+    precio: 'Desde RD$ 2,000',
+    icono: '👑',
+    colores: ['from-yellow-400', 'to-amber-600'],
+    caracteristicas: ['Invitación digital', 'Confirmación de asistencia', 'Lista de regalos', 'Diseño responsivo', 'Soporte prioritario'],
+    categorias: ['bodas', '15-anos', 'graduacion', 'corporativo', 'aniversario'],
   },
   {
     id: 'verde-natural',
     nombre: 'Verde Natural',
-    descripción: 'Fresco y orgánico. Perfecto para baby showers al aire libre o temáticos.',
-    colores: 'from-green-300 to-emerald-400',
-    preview: '🌿',
-    popular: false,
-    características: ['Estilo natural', 'Colores tierra', 'Ambiente relajado'],
+    descripcion: 'Orgánico y fresco con tonos de naturaleza',
+    precio: 'Desde RD$ 1,500',
+    icono: '🍃',
+    colores: ['from-green-400', 'to-emerald-600'],
+    caracteristicas: ['Invitación digital', 'Confirmación de asistencia', 'Lista de regalos', 'Diseño responsivo'],
+    categorias: ['baby', 'graduacion', 'corporativo', 'memorial'],
   },
   {
     id: 'morado-magico',
     nombre: 'Morado Mágico',
-    descripción: 'Encantador y único. Para mamás que buscan algo diferente y especial.',
-    colores: 'from-purple-300 to-violet-400',
-    preview: '🦄',
-    popular: false,
-    características: ['Toque mágico', 'Colores vibrantes', 'Diseño único'],
+    descripcion: 'Encantador y místico con tonos violetas',
+    precio: 'Desde RD$ 1,500',
+    icono: '🌟',
+    colores: ['from-purple-400', 'to-violet-600'],
+    caracteristicas: ['Invitación digital', 'Confirmación de asistencia', 'Lista de regalos', 'Diseño responsivo'],
+    categorias: ['15-anos', 'cumpleanos', 'bodas'],
   },
   {
     id: 'arcoiris',
     nombre: 'Arcoíris',
-    descripción: 'Alegre y colorido. Para celebrar con toda la energía y felicidad.',
-    colores: 'from-pink-400 via-purple-400 to-blue-400',
-    preview: '🌈',
-    popular: true,
-    características: ['Multicolor', 'Energía positiva', 'Divertido'],
+    descripcion: 'Alegre y colorido con todos los tonos',
+    precio: 'Desde RD$ 1,800',
+    icono: '🎨',
+    colores: ['from-pink-400', 'via-purple-400', 'to-blue-400'],
+    caracteristicas: ['Invitación digital', 'Confirmación de asistencia', 'Lista de regalos', 'Diseño responsivo'],
+    categorias: ['baby', 'cumpleanos', 'despedida', 'navidad'],
   },
 ];
 
-const precios = [
-  {
-    nombre: 'Básico',
-    precio: '$49 USD',
-    incluye: [
-      '1 evento',
-      'Hasta 50 invitados',
-      '10 regalos en lista',
-      'Diseño estándar',
-      'Soporte por email',
-    ],
-    destacado: false,
-  },
-  {
-    nombre: 'Premium',
-    precio: '$99 USD',
-    incluye: [
-      '1 evento',
-      'Invitados ilimitados',
-      'Regalos ilimitados',
-      'Cualquier diseño',
-      'Mensaje personalizado',
-      'Soporte prioritario',
-    ],
-    destacado: true,
-  },
-  {
-    nombre: 'VIP',
-    precio: '$199 USD',
-    incluye: [
-      'Todo lo de Premium',
-      'Recordatorios automáticos',
-      'Código QR personalizado',
-      'Reporte de confirmados en PDF',
-      'Cambios ilimitados',
-      'Soporte 24/7',
-    ],
-    destacado: false,
-  },
+const categorias = [
+  { id: 'todos', nombre: '✨ Todos', icono: '🎨' },
+  { id: 'baby', nombre: '👶 Baby', icono: '🧸' },
+  { id: 'cumpleanos', nombre: '🎂 Cumpleaños', icono: '🎈' },
+  { id: 'bodas', nombre: '💒 Bodas', icono: '💍' },
+  { id: '15-anos', nombre: '👑 15 Años', icono: '👸' },
+  { id: 'graduacion', nombre: '🎓 Graduación', icono: '🎓' },
+  { id: 'corporativo', nombre: '🏢 Corporativo', icono: '👔' },
+  { id: 'otros', nombre: '🎊 Otros', icono: '🎉' },
 ];
+
+const WHATSAPP_NUMBER = '18293697838'; // ⚠️ CAMBIA POR TU NÚMERO
 
 export default function PortafolioPage() {
-  const [selectedDesign, setSelectedDesign] = useState<string | null>(null);
+  const [previewDesign, setPreviewDesign] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [categoriaActiva, setCategoriaActiva] = useState('todos');
   const [showContactForm, setShowContactForm] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    email: '',
+    telefono: '',
+    diseño: '',
+    mensaje: '',
+  });
+
+  const handleOpenPreview = (designId: string) => {
+    setPreviewDesign(designId);
+    setIsModalOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setIsModalOpen(false);
+    setTimeout(() => setPreviewDesign(null), 300);
+  };
+
+  const handleSelectDesign = (designId: string) => {
+    const diseño = diseños.find(d => d.id === designId);
+    const mensaje = `¡Hola! 👋 Me interesa el diseño *${diseño?.nombre}* de InvitaDigital.
+
+💰 Precio: ${diseño?.precio}
+
+Me gustaría más información sobre:
+- Personalización del diseño
+- Tiempo de entrega
+- Formas de pago
+
+¡Gracias! 🎉`;
+    
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensaje)}`, '_blank');
+  };
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const mensaje = `¡Hola! 👋 Quiero cotizar una invitación digital en InvitaDigital
+
+📋 Datos de contacto:
+• Nombre: ${formData.nombre}
+• Email: ${formData.email}
+• Teléfono: ${formData.telefono}
+• Diseño de interés: ${formData.diseño || 'No especificado'}
+
+💬 Mensaje: ${formData.mensaje}
+
+¡Gracias! 🎉`;
+    
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    setShowContactForm(false);
+    setFormData({ nombre: '', email: '', telefono: '', diseño: '', mensaje: '' });
+  };
+
+  const diseñosFiltrados = categoriaActiva === 'todos' 
+    ? diseños 
+    : diseños.filter(d => d.categorias?.includes(categoriaActiva));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-bold text-pink-500">
-            🎉 BabyInvites
-          </Link>
-          <nav className="hidden md:flex gap-6">
-            <a href="#diseños" className="text-gray-600 hover:text-pink-500 transition">Diseños</a>
-            <a href="#precios" className="text-gray-600 hover:text-pink-500 transition">Precios</a>
-            <a href="#contacto" className="text-gray-600 hover:text-pink-500 transition">Contacto</a>
-          </nav>
-          <button
-            onClick={() => setShowContactForm(true)}
-            className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-full font-semibold transition"
-          >
-            Contratar
-          </button>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="py-20 px-6 text-center">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Invitaciones Digitales para <span className="text-pink-500">Baby Shower</span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Crea invitaciones hermosas con confirmación de asistencia, lista de regalos en tiempo real y dashboard para los organizadores.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="#diseños"
-              className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg transition transform hover:scale-105"
-            >
-              Ver Diseños
-            </a>
-            <Link
-              href="/admin"
-              className="bg-white border-2 border-pink-500 text-pink-500 hover:bg-pink-50 px-8 py-4 rounded-full font-semibold text-lg transition"
-            >
-              Ya tengo cuenta →
-            </Link>
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        
+        {/* Header */}
+        <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white py-16 shadow-xl">
+          <div className="container mx-auto px-4 text-center">
+            <div className="text-6xl mb-4 animate-bounce">🎉</div>
+            <h1 className="text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-pink-200">
+              InvitaDigital
+            </h1>
+            <p className="text-2xl text-white/95 font-semibold mb-4">
+              Invitaciones Digitales para Todo Tipo de Evento
+            </p>
+            <p className="text-xl text-white/85 max-w-3xl mx-auto">
+              Baby Shower • Cumpleaños • Bodas • 15 Años • Graduación • Corporativos y más
+            </p>
           </div>
-        </div>
-      </section>
+        </header>
 
-      {/* Diseños Section */}
-      <section id="diseños" className="py-16 px-6 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-gray-900 mb-4">
-            🎨 Nuestros Diseños
-          </h2>
-          <p className="text-center text-gray-600 mb-12 text-lg">
-            Elige el estilo perfecto para tu celebración
-          </p>
+        {/* Precios por Categoría */}
+        <section className="container mx-auto px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-12 border-2 border-purple-100">
+            <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">
+              💰 Precios por Tipo de Evento
+            </h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center p-6 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl border-2 border-pink-200 hover:shadow-lg transition">
+                <div className="text-5xl mb-3">👶</div>
+                <h3 className="font-bold text-gray-900 text-lg mb-2">Baby</h3>
+                <p className="text-2xl font-bold text-pink-600 mb-2">RD$ 1,500</p>
+                <p className="text-sm text-gray-600">Baby Shower, Reveal, Bautizo</p>
+              </div>
+              <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-200 hover:shadow-lg transition">
+                <div className="text-5xl mb-3">🎂</div>
+                <h3 className="font-bold text-gray-900 text-lg mb-2">Cumpleaños</h3>
+                <p className="text-2xl font-bold text-blue-600 mb-2">RD$ 1,500 - 2,500</p>
+                <p className="text-sm text-gray-600">Niños, Adultos, 15 Años</p>
+              </div>
+              <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:shadow-lg transition">
+                <div className="text-5xl mb-3">💒</div>
+                <h3 className="font-bold text-gray-900 text-lg mb-2">Bodas</h3>
+                <p className="text-2xl font-bold text-purple-600 mb-2">RD$ 3,500 - 5,000</p>
+                <p className="text-sm text-gray-600">Boda, Bridal Shower, Aniversario</p>
+              </div>
+              <div className="text-center p-6 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border-2 border-indigo-200 hover:shadow-lg transition">
+                <div className="text-5xl mb-3">🎓</div>
+                <h3 className="font-bold text-gray-900 text-lg mb-2">Graduación</h3>
+                <p className="text-2xl font-bold text-indigo-600 mb-2">RD$ 1,500 - 2,000</p>
+                <p className="text-sm text-gray-600">Universidad, Escuela, Curso</p>
+              </div>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {diseños.map((diseño) => (
+          {/* Info Section */}
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-12 border-2 border-purple-100">
+            <div className="grid md:grid-cols-3 gap-8 text-center">
+              <div>
+                <div className="text-5xl mb-4">📱</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">100% Digital</h3>
+                <p className="text-gray-600">Envía tu invitación por WhatsApp, email o redes sociales</p>
+              </div>
+              <div>
+                <div className="text-5xl mb-4">✅</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Confirmación Fácil</h3>
+                <p className="text-gray-600">Tus invitados confirman asistencia con un solo clic</p>
+              </div>
+              <div>
+                <div className="text-5xl mb-4">🎁</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Lista de Regalos</h3>
+                <p className="text-gray-600">Gestiona los regalos de forma inteligente</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Category Filters */}
+          <div className="flex flex-wrap gap-3 justify-center mb-8">
+            {categorias.map(categoria => (
+              <button
+                key={categoria.id}
+                onClick={() => setCategoriaActiva(categoria.id)}
+                className={`px-6 py-3 rounded-full font-semibold transition transform hover:scale-105 shadow-md ${
+                  categoriaActiva === categoria.id
+                    ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-lg'
+                    : 'bg-white text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                {categoria.icono} {categoria.nombre}
+              </button>
+            ))}
+          </div>
+
+          {/* Designs Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {diseñosFiltrados.map((diseño) => (
               <div
                 key={diseño.id}
-                className={`bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer transform transition hover:scale-105 border-2 ${
-                  selectedDesign === diseño.id ? 'border-pink-500 ring-4 ring-pink-200' : 'border-transparent'
-                }`}
-                onClick={() => setSelectedDesign(diseño.id)}
+                className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-2 border-purple-100"
               >
-                {/* Preview */}
-                <div className={`h-48 bg-gradient-to-r ${diseño.colores} flex items-center justify-center relative`}>
-                  <span className="text-7xl">{diseño.preview}</span>
-                  {diseño.popular && (
-                    <span className="absolute top-4 right-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-bold">
-                      ⭐ Popular
-                    </span>
-                  )}
+                <div className={`bg-gradient-to-r ${diseño.colores.join(' ')} p-8 text-center`}>
+                  <div className="text-6xl mb-4 animate-bounce">{diseño.icono}</div>
+                  <h3 className="text-2xl font-bold text-white mb-2">{diseño.nombre}</h3>
+                  <p className="text-white/95 font-bold text-lg">{diseño.precio}</p>
                 </div>
 
-                {/* Info */}
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{diseño.nombre}</h3>
-                  <p className="text-gray-600 mb-4">{diseño.descripción}</p>
+                <div className="p-6 space-y-4">
+                  <p className="text-gray-700 text-center">{diseño.descripcion}</p>
                   
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {diseño.características.map((car, i) => (
-                      <span key={i} className="bg-pink-50 text-pink-700 px-3 py-1 rounded-full text-xs font-medium">
-                        {car}
-                      </span>
+                  <ul className="space-y-2">
+                    {diseño.caracteristicas.map((caracteristica, index) => (
+                      <li key={index} className="flex items-center gap-2 text-gray-700">
+                        <span className="text-green-500 text-lg">✓</span>
+                        <span>{caracteristica}</span>
+                      </li>
                     ))}
+                  </ul>
+
+                  <div className="space-y-3 pt-4">
+                    <button
+                      onClick={() => handleOpenPreview(diseño.id)}
+                      className={`w-full bg-gradient-to-r ${diseño.colores.join(' ')} hover:opacity-90 text-white font-bold py-3 px-6 rounded-lg transition transform hover:scale-105 shadow-md`}
+                    >
+                      👁️ Ver Vista Previa
+                    </button>
+                    
+                    <button
+                      onClick={() => handleSelectDesign(diseño.id)}
+                      className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition transform hover:scale-105 shadow-md flex items-center justify-center gap-2"
+                    >
+                      <span>📱</span> Contratar por WhatsApp
+                    </button>
                   </div>
-                  
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedDesign(diseño.id);
-                      setShowContactForm(true);
-                    }}
-                    className={`w-full py-3 rounded-lg font-semibold transition ${
-                      selectedDesign === diseño.id
-                        ? 'bg-green-500 text-white'
-                        : 'bg-pink-500 text-white hover:bg-pink-600'
-                    }`}
-                  >
-                    {selectedDesign === diseño.id ? '✅ Seleccionado' : 'Elegir este diseño'}
-                  </button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Precios Section */}
-      <section id="precios" className="py-16 px-6 bg-gradient-to-br from-pink-50 to-purple-50">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-gray-900 mb-4">
-            💰 Planes y Precios
-          </h2>
-          <p className="text-center text-gray-600 mb-12 text-lg">
-            Inversión única por evento. Sin mensualidades.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {precios.map((plan) => (
-              <div
-                key={plan.nombre}
-                className={`bg-white rounded-2xl p-8 ${
-                  plan.destacado 
-                    ? 'shadow-2xl border-4 border-pink-500 relative' 
-                    : 'shadow-lg border border-gray-200'
-                }`}
-              >
-                {plan.destacado && (
-                  <span className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-pink-500 text-white px-4 py-1 rounded-full text-sm font-bold">
-                    Más Popular
-                  </span>
-                )}
-                
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.nombre}</h3>
-                <p className="text-4xl font-bold text-pink-500 mb-6">{plan.precio}</p>
-                
-                <ul className="space-y-3 mb-8">
-                  {plan.incluye.map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-gray-700">
-                      <span className="text-green-500">✅</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                
-                <button
-                  onClick={() => setShowContactForm(true)}
-                  className={`w-full py-3 rounded-lg font-semibold transition ${
-                    plan.destacado
-                      ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600'
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  Contratar {plan.nombre}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Cómo Funciona */}
-      <section className="py-16 px-6 bg-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-12">
-            🚀 ¿Cómo Funciona?
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {[
-              { paso: 1, icono: '📝', título: 'Contáctanos', desc: 'Elige tu diseño y plan' },
-              { paso: 2, icono: '🎨', título: 'Personalizamos', desc: 'Agregamos tu información' },
-              { paso: 3, icono: '🔗', título: 'Recibes links', desc: 'Para invitados y dashboard' },
-              { paso: 4, icono: '🎉', título: '¡A celebrar!', desc: 'Nosotros nos encargamos del resto' },
-            ].map((item) => (
-              <div key={item.paso} className="text-center">
-                <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-                  {item.icono}
-                </div>
-                <p className="text-sm font-bold text-pink-500 mb-2">Paso {item.paso}</p>
-                <h4 className="font-bold text-gray-900 mb-2">{item.título}</h4>
-                <p className="text-gray-600 text-sm">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Barra inferior cuando se selecciona diseño */}
-      {selectedDesign && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-2xl p-6 border-t z-40">
-          <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <div>
-              <p className="text-gray-600">Diseño seleccionado:</p>
-              <p className="text-xl font-bold text-gray-900">
-                {diseños.find(d => d.id === selectedDesign)?.nombre}
+        {/* Contact Form Section */}
+        <section className="container mx-auto px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-purple-100">
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-4">💌</div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                ¿Tienes Preguntas?
+              </h2>
+              <p className="text-gray-600">
+                Llena este formulario y te contactaré por WhatsApp con toda la información
               </p>
             </div>
-            <div className="flex gap-4">
+            
+            <form onSubmit={handleContactSubmit} className="space-y-4">
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">Nombre Completo *</label>
+                <input
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                  placeholder="Tu nombre"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">Email *</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                  placeholder="tu@email.com"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">WhatsApp *</label>
+                <input
+                  type="tel"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                  placeholder="829-123-4567"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">Diseño de Interés</label>
+                <select
+                  value={formData.diseño}
+                  onChange={(e) => setFormData({ ...formData, diseño: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                >
+                  <option value="">Selecciona un diseño (opcional)</option>
+                  {diseños.map(d => (
+                    <option key={d.id} value={d.nombre}>{d.nombre} - {d.precio}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">Mensaje</label>
+                <textarea
+                  value={formData.mensaje}
+                  onChange={(e) => setFormData({ ...formData, mensaje: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 resize-none"
+                  placeholder="Cuéntame más sobre tu evento..."
+                />
+              </div>
+              
               <button
-                onClick={() => {
-                  setSelectedDesign(null);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-3 rounded-lg font-semibold transition"
+                type="submit"
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-4 px-6 rounded-lg transition transform hover:scale-105 shadow-lg"
               >
-                Cancelar
+                📱 Enviar por WhatsApp
               </button>
-              <button
-                onClick={() => setShowContactForm(true)}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8 py-3 rounded-lg font-semibold transition shadow-lg"
+            </form>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="container mx-auto px-4 py-12">
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl p-12 text-center text-white border-4 border-white/20">
+            <div className="text-6xl mb-4 animate-bounce">🎊</div>
+            <h2 className="text-5xl font-bold mb-4">InvitaDigital</h2>
+            <p className="text-2xl text-white/95 mb-4 font-semibold">
+              ¿Listo para celebrar?
+            </p>
+            <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+              Elige tu diseño favorito y comienza a crear la invitación perfecta para cualquier evento
+            </p>
+            <div className="flex flex-col md:flex-row gap-4 justify-center">
+              <a
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('¡Hola! 👋 Quiero información sobre las invitaciones digitales de InvitaDigital')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-full shadow-lg transition transform hover:scale-105 text-lg"
               >
-                Continuar →
+                📱 Contactar por WhatsApp
+              </a>
+              <button
+                onClick={() => setShowContactForm(!showContactForm)}
+                className="bg-white text-purple-600 font-bold py-4 px-8 rounded-full shadow-lg hover:bg-gray-100 transition transform hover:scale-105 text-lg"
+              >
+                📋 Llenar Formulario
               </button>
             </div>
+            <p className="text-white/80 mt-8 text-sm">
+              ⚠️ El panel de administración es solo para uso interno
+            </p>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="bg-white border-t-2 border-purple-100 mt-12 py-8">
+          <div className="container mx-auto px-4 text-center">
+            <div className="text-3xl mb-3">🎉</div>
+            <p className="text-2xl font-bold text-gray-900 mb-2">InvitaDigital</p>
+            <p className="text-gray-600 mb-4">Invitaciones Digitales para Todo Evento</p>
+            <div className="flex justify-center gap-6 mb-4 text-sm text-gray-500 flex-wrap">
+              <span>👶 Baby Shower</span>
+              <span>🎂 Cumpleaños</span>
+              <span>💒 Bodas</span>
+              <span>👑 15 Años</span>
+              <span>🎓 Graduación</span>
+              <span>🏢 Corporativos</span>
+            </div>
+            <p className="text-gray-500 text-sm">
+              Hecho con 💕 para celebrar momentos especiales
+            </p>
+            <p className="text-gray-400 text-xs mt-2">
+              © {new Date().getFullYear()} InvitaDigital. Todos los derechos reservados.
+            </p>
+          </div>
+        </footer>
+      </div>
+
+      {/* Preview Modal */}
+      <PortfolioPreviewModal
+        isOpen={isModalOpen}
+        onClose={handleClosePreview}
+        design={previewDesign || 'rosa-clasico'}
+      />
+
+      {/* Contact Form Modal */}
+      {showContactForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="absolute inset-0" onClick={() => setShowContactForm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-8 border-2 border-purple-200">
+            <button
+              onClick={() => setShowContactForm(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-900 text-2xl"
+            >
+              ✕
+            </button>
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-2">📋</div>
+              <h2 className="text-2xl font-bold text-gray-900">Formulario de Contacto</h2>
+            </div>
+            <form onSubmit={handleContactSubmit} className="space-y-4">
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">Nombre *</label>
+                <input
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">WhatsApp *</label>
+                <input
+                  type="tel"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-900 font-semibold mb-2">Diseño</label>
+                <select
+                  value={formData.diseño}
+                  onChange={(e) => setFormData({ ...formData, diseño: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                >
+                  <option value="">Selecciona un diseño</option>
+                  {diseños.map(d => (
+                    <option key={d.id} value={d.nombre}>{d.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 rounded-lg shadow-md"
+              >
+                📱 Enviar por WhatsApp
+              </button>
+            </form>
           </div>
         </div>
       )}
-
-      {/* Contacto Modal */}
-{showContactForm && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 relative border-2 border-pink-200">
-      <button
-        onClick={() => setShowContactForm(false)}
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl font-bold"
-      >
-        ×
-      </button>
-      
-      <h3 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-        <span className="text-3xl">🎉</span> ¡Empecemos!
-      </h3>
-      
-      <form className="space-y-5" onSubmit={(e) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const mensaje = `Hola, quiero contratar una invitación:%0A%0ADiseño: ${selectedDesign || 'Por definir'}%0ANombre: ${formData.get('nombre')}%0AWhatsApp: ${formData.get('whatsapp')}%0AFecha evento: ${formData.get('fecha')}`;
-        window.open(`https://wa.me/18293697838?text=${mensaje}`, '_blank');
-      }}>
-        <div>
-          <label className="block text-gray-900 font-bold mb-2 text-lg">
-            Tu nombre *
-          </label>
-          <input
-            name="nombre"
-            type="text"
-            required
-            className="w-full px-4 py-3 border-2 border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 font-medium placeholder-gray-500"
-            placeholder="María González"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-gray-900 font-bold mb-2 text-lg">
-            WhatsApp *
-          </label>
-          <input
-            name="whatsapp"
-            type="tel"
-            required
-            className="w-full px-4 py-3 border-2 border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 font-medium placeholder-gray-500"
-            placeholder="829-123-4567"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-gray-900 font-bold mb-2 text-lg">
-            Fecha del evento
-          </label>
-          <input
-            name="fecha"
-            type="date"
-            className="w-full px-4 py-3 border-2 border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 font-medium"
-          />
-        </div>
-        
-        {selectedDesign && (
-          <div className="bg-gradient-to-r from-pink-100 to-purple-100 p-5 rounded-lg border-2 border-pink-300">
-            <p className="text-gray-900 font-bold">
-              Diseño seleccionado: <span className="text-pink-600 font-bold text-lg">{diseños.find(d => d.id === selectedDesign)?.nombre}</span>
-            </p>
-          </div>
-        )}
-        
-        <button
-          type="submit"
-          className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold py-4 rounded-lg transition shadow-lg text-lg"
-        >
-          📱 Contactar por WhatsApp
-        </button>
-      </form>
-      
-      <div className="mt-6 text-center">
-        <p className="text-gray-700 font-medium mb-2">
-          O escríbenos directamente:
-        </p>
-        <a 
-          href="https://wa.me/18293697838" 
-          className="text-pink-600 hover:text-pink-800 font-bold underline text-lg" 
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          wa.me/18293697838
-        </a>
-      </div>
-    </div>
-  </div>
-)}
-      {/* Footer */}
-      <footer id="contacto" className="bg-gray-900 text-white py-12 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h4 className="text-xl font-bold mb-4">🎉 BabyInvites</h4>
-              <p className="text-gray-400">
-                Invitaciones digitales hermosas para celebrar momentos especiales.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-lg font-bold mb-4">Enlaces</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#diseños" className="hover:text-pink-400 transition">Diseños</a></li>
-                <li><a href="#precios" className="hover:text-pink-400 transition">Precios</a></li>
-                <li><Link href="/admin" className="hover:text-pink-400 transition">Admin</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-bold mb-4">Contacto</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li>📧 hola@babyinvites.com</li>
-                <li>
-                  <a href="https://wa.me/18293697838" className="hover:text-pink-400 transition" target="_blank">
-                    📱 WhatsApp
-                  </a>
-                </li>
-                <li>🕐 Lunes a Sábado, 9am - 8pm</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
-            © {new Date().getFullYear()} BabyInvites. Todos los derechos reservados.
-          </div>
-        </div>
-      </footer>
-    </div>
+    </>
   );
 }

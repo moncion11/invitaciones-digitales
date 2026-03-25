@@ -4,6 +4,11 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { collection, getDocs, query, where, doc, updateDoc, Timestamp, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getPlantillaById } from '@/lib/templates';
+import { format12Hour, formatDateSpanish } from '@/lib/utils';
+import GenericInvitationForm from '@/components/GenericInvitationForm';
+import InvitationRenderer from '@/components/admin/InvitationRenderer';
+import { useModal } from '@/components/Modal';
 
 interface Gift {
   id: string;
@@ -25,115 +30,29 @@ interface GuestData {
   fechaConfirmacion?: any;
 }
 
-interface Theme {
-  primary: string;
-  secondary: string;
-  bgGradient: string;
-  accent: string;
-  buttonHover: string;
-  lightBg: string;
-  borderColor: string;
-  icon: string;
-  headerIcon: string;
-}
-
 function InvitationContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get('inv');
+  const { showAlert } = useModal();
+  const guestToken = searchParams.get('inv');
+  const eventoToken = searchParams.get('evento');
   
-  const [currentSection, setCurrentSection] = useState<'info' | 'rsvp' | 'confirmation' | 'gifts' | 'thankyou'>('info');
+  const [currentSection, setCurrentSection] = useState<'form' | 'info' | 'rsvp' | 'confirmation' | 'gifts' | 'thankyou'>('info');
   const [guestData, setGuestData] = useState<GuestData | null>(null);
   const [eventoData, setEventData] = useState<any>(null);
+  const [plantilla, setPlantilla] = useState<any>(null);
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const getDesignTheme = (): Theme => {
-    const design = eventoData?.diseño || 'rosa-clasico';
-    
-    const themes: Record<string, Theme> = {
-      'rosa-clasico': {
-        primary: 'from-pink-400 to-pink-600',
-        secondary: 'from-purple-400 to-purple-600',
-        bgGradient: 'from-pink-100 via-amber-50 to-pink-100',
-        accent: 'text-pink-600',
-        buttonHover: 'from-pink-600 to-purple-600',
-        lightBg: 'bg-pink-50',
-        borderColor: 'border-pink-300',
-        icon: '🧸',
-        headerIcon: '🎀',
-      },
-      'azul-bebe': {
-        primary: 'from-blue-400 to-blue-600',
-        secondary: 'from-cyan-400 to-cyan-600',
-        bgGradient: 'from-blue-100 via-cyan-50 to-blue-100',
-        accent: 'text-blue-600',
-        buttonHover: 'from-blue-600 to-cyan-600',
-        lightBg: 'bg-blue-50',
-        borderColor: 'border-blue-300',
-        icon: '👶',
-        headerIcon: '⭐',
-      },
-      'dorado-lujo': {
-        primary: 'from-yellow-400 to-amber-500',
-        secondary: 'from-orange-400 to-amber-600',
-        bgGradient: 'from-yellow-100 via-amber-50 to-yellow-100',
-        accent: 'text-amber-600',
-        buttonHover: 'from-amber-500 to-orange-600',
-        lightBg: 'bg-yellow-50',
-        borderColor: 'border-amber-300',
-        icon: '✨',
-        headerIcon: '👑',
-      },
-      'verde-natural': {
-        primary: 'from-green-400 to-emerald-600',
-        secondary: 'from-teal-400 to-green-600',
-        bgGradient: 'from-green-100 via-teal-50 to-green-100',
-        accent: 'text-green-600',
-        buttonHover: 'from-emerald-600 to-teal-600',
-        lightBg: 'bg-green-50',
-        borderColor: 'border-green-300',
-        icon: '🌿',
-        headerIcon: '🍃',
-      },
-      'morado-magico': {
-        primary: 'from-purple-400 to-violet-600',
-        secondary: 'from-fuchsia-400 to-purple-600',
-        bgGradient: 'from-purple-100 via-fuchsia-50 to-purple-100',
-        accent: 'text-purple-600',
-        buttonHover: 'from-violet-600 to-fuchsia-600',
-        lightBg: 'bg-purple-50',
-        borderColor: 'border-purple-300',
-        icon: '🦄',
-        headerIcon: '🌟',
-      },
-      'arcoiris': {
-        primary: 'from-pink-400 via-purple-400 to-blue-400',
-        secondary: 'from-yellow-400 via-orange-400 to-red-400',
-        bgGradient: 'from-pink-100 via-purple-100 to-blue-100',
-        accent: 'text-pink-600',
-        buttonHover: 'from-purple-600 to-blue-600',
-        lightBg: 'bg-pink-50',
-        borderColor: 'border-pink-300',
-        icon: '🌈',
-        headerIcon: '🎨',
-      },
-    };
-    
-    return themes[design] || themes['rosa-clasico'];
-  };
-
-  const theme = getDesignTheme();
-
   useEffect(() => {
-    if (!token) {
+    if (!guestToken && !eventoToken) {
       setLoading(false);
       return;
     }
     fetchGuestData();
-  }, [token]);
+  }, [guestToken, eventoToken]);
 
   const fetchGuestData = async () => {
     try {
@@ -144,45 +63,64 @@ function InvitationContent() {
       let foundEvento: any = null;
       let guestId = '';
 
-      for (const eventoDoc of eventosSnapshot.docs) {
-        const invitadosRef = collection(db, 'eventos', eventoDoc.id, 'invitados');
-        const q = query(invitadosRef, where('__name__', '==', token));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-          foundGuest = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-          foundEvento = { id: eventoDoc.id, ...eventoDoc.data() };
-          guestId = snapshot.docs[0].id;
-          break;
+      if (guestToken) {
+        for (const eventoDoc of eventosSnapshot.docs) {
+          const invitadosRef = collection(db, 'eventos', eventoDoc.id, 'invitados');
+          const q = query(invitadosRef, where('__name__', '==', guestToken));
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            foundGuest = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+            foundEvento = { id: eventoDoc.id, ...eventoDoc.data() };
+            guestId = snapshot.docs[0].id;
+            break;
+          }
+        }
+      }
+      else if (eventoToken) {
+        for (const eventoDoc of eventosSnapshot.docs) {
+          if (eventoDoc.data().token === eventoToken) {
+            foundEvento = { id: eventoDoc.id, ...eventoDoc.data() };
+            setCurrentSection('form');
+            break;
+          }
         }
       }
 
-      if (foundGuest && foundEvento) {
-        setGuestData({ 
-          ...foundGuest, 
-          guestId,
-          confirmado: foundGuest.confirmado || false,
-          regaloSeleccionado: foundGuest.regaloSeleccionado || null,
-        });
+      if (foundEvento) {
         setEventData(foundEvento);
         
-        const giftsRef = collection(db, 'eventos', foundEvento.id, 'regalos');
-        const giftsSnapshot = await getDocs(giftsRef);
-        const giftsList = giftsSnapshot.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data(),
-          ilimitado: doc.data().stock > 100,
-          seleccionado: false,
-          disponible: doc.data().disponible ?? true,
-        })) as Gift[];
-        setGifts(giftsList);
-        
-        if (foundGuest.confirmado) {
-          setCurrentSection('gifts');
+        if (foundEvento.plantillaId) {
+          const plantillaData = await getPlantillaById(foundEvento.plantillaId);
+          setPlantilla(plantillaData);
         }
-        if (foundGuest.regaloSeleccionado) {
-          setSelectedGiftId(foundGuest.regaloSeleccionado);
-          setCurrentSection('thankyou');
+        
+        if (foundGuest) {
+          setGuestData({ 
+            ...foundGuest, 
+            guestId,
+            confirmado: foundGuest.confirmado || false,
+            regaloSeleccionado: foundGuest.regaloSeleccionado || null,
+          });
+          
+          const giftsRef = collection(db, 'eventos', foundEvento.id, 'regalos');
+          const giftsSnapshot = await getDocs(giftsRef);
+          const giftsList = giftsSnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data(),
+            ilimitado: doc.data().stock > 100,
+            seleccionado: false,
+            disponible: doc.data().disponible ?? true,
+          })) as Gift[];
+          setGifts(giftsList);
+          
+          if (foundGuest.confirmado) {
+            setCurrentSection('gifts');
+          }
+          if (foundGuest.regaloSeleccionado) {
+            setSelectedGiftId(foundGuest.regaloSeleccionado);
+            setCurrentSection('thankyou');
+          }
         }
       }
     } catch (error) {
@@ -192,8 +130,16 @@ function InvitationContent() {
     }
   };
 
+  const handleGuestCreated = (newGuestId: string) => {
+    const newUrl = `${window.location.origin}/?inv=${newGuestId}`;
+    window.history.replaceState({}, '', newUrl);
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  };
+
   const confirmAttendance = async () => {
-    if (!token || !guestData) return;
+    if (!guestToken || !guestData) return;
     
     setConfirming(true);
     try {
@@ -209,18 +155,18 @@ function InvitationContent() {
       setCurrentSection('confirmation');
     } catch (error) {
       console.error('Error confirming attendance:', error);
-      alert('❌ Error al confirmar asistencia');
+      showAlert('Error al confirmar asistencia', 'error');
     } finally {
       setConfirming(false);
     }
   };
 
   const selectGift = async (giftId: string) => {
-    if (!token || !guestData) return;
+    if (!guestToken || !guestData) return;
     
     const gift = gifts.find(g => g.id === giftId);
     if (!gift || (!gift.disponible && !gift.ilimitado)) {
-      alert('Este regalo ya fue seleccionado por otro invitado');
+      showAlert('Este regalo ya fue seleccionado por otro invitado', 'warning');
       return;
     }
     
@@ -274,14 +220,14 @@ function InvitationContent() {
       setTimeout(() => setCurrentSection('thankyou'), 3000);
     } catch (error: any) {
       console.error('Error selecting gift:', error);
-      alert(error.message || 'Error al seleccionar regalo');
+      showAlert(error.message || 'Error al seleccionar regalo', 'error');
     } finally {
       setConfirming(false);
     }
   };
 
   const shareToWhatsApp = () => {
-    const message = `¡Hola! Te invito a mi Baby Shower 🎉\n\nFecha: ${eventoData?.configuracion?.fecha || 'Por definir'}\nHora: ${eventoData?.configuracion?.hora || 'Por definir'}\nLugar: ${eventoData?.configuracion?.lugar || 'Por definir'}\n\nConfirma tu asistencia aquí: ${window.location.href}`;
+    const message = `¡Hola! Te invito a ${eventoData?.tituloPrincipal || 'mi evento'} 🎉\n\n${eventoData?.subtitulo || ''} ${eventoData.configuracion?.personalizada?.nombreBebe || ''}\n\nFecha: ${eventoData?.configuracion?.fecha || 'Por definir'}\nHora: ${eventoData?.configuracion?.hora ? format12Hour(eventoData.configuracion.hora) : 'Por definir'}\nLugar: ${eventoData?.configuracion?.lugar || 'Por definir'}\n\nConfirma tu asistencia aquí: ${window.location.href}`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
   };
@@ -302,103 +248,321 @@ function InvitationContent() {
     }
   }, [showConfetti]);
 
-  const selectedCount = gifts.filter(g => g.seleccionado && !g.ilimitado).length;
-  const totalCount = gifts.filter(g => !g.ilimitado).length;
-  const progressPercentage = totalCount > 0 ? (selectedCount / totalCount) * 100 : 0;
-
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${theme.bgGradient}`}>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-bounce">{theme.headerIcon}</div>
-          <p className="text-gray-700 text-lg font-medium" style={{ fontFamily: "'Quicksand', sans-serif" }}>Cargando invitación...</p>
+          <div className="text-6xl mb-4 animate-bounce">🎉</div>
+          <p className="text-gray-700 text-lg font-medium">Cargando invitación...</p>
         </div>
       </div>
     );
   }
 
-  if (!token || !guestData || !eventoData) {
+  if (!guestToken && !eventoToken) {
     return (
-      <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${theme.bgGradient}`}>
-        <div className="text-center bg-white p-8 rounded-3xl shadow-xl max-w-md" style={{ fontFamily: "'Quicksand', sans-serif" }}>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        <div className="text-center bg-white p-8 rounded-3xl shadow-xl max-w-md">
           <p className="text-6xl mb-4">❌</p>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Enlace inválido o expirado</h2>
           <p className="text-gray-600 mb-6">El link que estás usando no es válido o la invitación ya no existe.</p>
-          <a href="/" className={`bg-gradient-to-r ${theme.primary} hover:opacity-90 text-white px-6 py-3 rounded-full font-semibold transition`}>
-            Volver al inicio
+          <a href="/portafolio" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white px-6 py-3 rounded-full font-semibold transition">
+            Ver Portafolio
           </a>
         </div>
       </div>
     );
   }
 
+  // Función para renderizar diseño según el tipo seleccionado
+  const renderDesign = () => {
+    const design = eventoData.diseño || 'rosa-clasico';
+    
+    // DISEÑO 1: Baby Shower Clásico Elegante (rosa-clasico, morado-magico)
+    if (design === 'rosa-clasico' || design === 'morado-magico') {
+      return (
+        <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-purple-200">
+          {/* Header Decorativo */}
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-8 text-center relative overflow-hidden">
+            <div className="absolute top-2 left-4 text-4xl opacity-50">🎈</div>
+            <div className="absolute top-2 right-4 text-4xl opacity-50">⭐</div>
+            <div className="absolute bottom-2 left-8 text-4xl opacity-50">🧸</div>
+            <div className="absolute bottom-2 right-8 text-4xl opacity-50">🎀</div>
+            
+            <div className="text-6xl mb-4 relative z-10">🎀</div>
+            <h1 className="text-4xl font-bold text-white mb-2 relative z-10">
+              {eventoData.tituloPrincipal || '¡Baby Shower!'}
+            </h1>
+            <p className="text-purple-100 text-lg relative z-10">{eventoData.subtitulo}</p>
+          </div>
+          
+          {/* Contenido */}
+          <div className="p-8 text-center">
+            <h2 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
+              {eventoData.configuracion?.personalizada?.nombreBebe || 'Nombre del Bebé'}
+            </h2>
+            
+            {eventoData.configuracion?.personalizada?.padres && (
+              <p className="text-gray-700 text-lg mb-4 font-medium">
+                👨‍👩‍👧 {eventoData.configuracion.personalizada.padres}
+              </p>
+            )}
+            
+            <p className="text-gray-600 mb-6">{eventoData.mensajeBienvenida}</p>
+            
+            <div className="flex items-center justify-center gap-4 my-6">
+              <div className="h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent flex-1"></div>
+              <span className="text-3xl">🧸</span>
+              <div className="h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent flex-1"></div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200">
+                <div className="text-3xl mb-2">📅</div>
+                <p className="text-xs text-gray-500 mb-1 font-semibold">Fecha</p>
+                <p className="font-bold text-gray-900 text-sm">
+                  {eventoData.configuracion?.fecha 
+                    ? formatDateSpanish(eventoData.configuracion.fecha) 
+                    : 'Por definir'}
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200">
+                <div className="text-3xl mb-2">🕐</div>
+                <p className="text-xs text-gray-500 mb-1 font-semibold">Hora</p>
+                <p className="font-bold text-gray-900 text-sm">
+                  {eventoData.configuracion?.hora 
+                    ? format12Hour(eventoData.configuracion.hora) 
+                    : 'Por definir'}
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200">
+                <div className="text-3xl mb-2">📍</div>
+                <p className="text-xs text-gray-500 mb-1 font-semibold">Lugar</p>
+                <p className="font-bold text-gray-900 text-sm">
+                  {eventoData.configuracion?.lugar || 'Por definir'}
+                </p>
+              </div>
+            </div>
+            
+            {eventoData.configuracion?.mensaje && (
+              <div className="bg-gradient-to-r from-purple-100 via-pink-100 to-purple-100 rounded-xl p-6 mb-6 border-2 border-purple-200">
+                <p className="text-gray-700 italic text-lg">"{eventoData.configuracion.mensaje}"</p>
+              </div>
+            )}
+            
+            {eventoData.configuracion?.personalizada?.genero && (
+              <div className="mb-6">
+                <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-full font-semibold border-2 border-purple-300">
+                  <span>🎀</span>
+                  <span>{eventoData.configuracion.personalizada.genero}</span>
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <div className="bg-gradient-to-r from-purple-100 via-pink-100 to-purple-100 p-6 text-center">
+            <p className="text-purple-600 font-bold text-lg">✨ ¡Te esperamos! ✨</p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <span className="text-2xl">🎈</span>
+              <span className="text-2xl">🧸</span>
+              <span className="text-2xl">🎀</span>
+              <span className="text-2xl">⭐</span>
+              <span className="text-2xl">🎈</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // DISEÑO 2: Baby Shower Moderno Minimalista (azul-bebe, verde-natural)
+    if (design === 'azul-bebe' || design === 'verde-natural') {
+      const isBlue = design === 'azul-bebe';
+      const gradientFrom = isBlue ? 'from-blue-500' : 'from-green-500';
+      const gradientTo = isBlue ? 'to-cyan-500' : 'to-emerald-500';
+      const bgGradient = isBlue ? 'from-blue-50 via-cyan-50 to-blue-50' : 'from-green-50 via-emerald-50 to-green-50';
+      
+      return (
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-gray-100">
+          <div className={`p-12 text-center bg-gradient-to-br ${bgGradient}`}>
+            <div className="inline-block px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full text-sm font-semibold mb-6">
+              BABY SHOWER
+            </div>
+            <h1 className="text-6xl font-bold text-gray-900 mb-4">
+              {eventoData.configuracion?.personalizada?.nombreBebe || 'Nombre del Bebé'}
+            </h1>
+            <p className="text-gray-600 text-lg">{eventoData.subtitulo}</p>
+          </div>
+          
+          <div className="p-8">
+            {eventoData.configuracion?.personalizada?.padres && (
+              <div className="text-center mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl">
+                <p className="text-gray-600 mb-2">Organizan</p>
+                <p className="font-bold text-gray-900 text-lg">{eventoData.configuracion.personalizada.padres}</p>
+              </div>
+            )}
+            
+            <div className="grid md:grid-cols-3 gap-6 mb-6">
+              <div className="text-center p-6 border-2 border-purple-100 rounded-2xl bg-gradient-to-br from-purple-50 to-white">
+                <div className="text-4xl mb-3">📅</div>
+                <p className="text-sm text-gray-500 mb-1">Fecha</p>
+                <p className="font-bold text-gray-900">
+                  {eventoData.configuracion?.fecha ? formatDateSpanish(eventoData.configuracion.fecha) : '—'}
+                </p>
+              </div>
+              <div className="text-center p-6 border-2 border-purple-100 rounded-2xl bg-gradient-to-br from-purple-50 to-white">
+                <div className="text-4xl mb-3">🕐</div>
+                <p className="text-sm text-gray-500 mb-1">Hora</p>
+                <p className="font-bold text-gray-900">
+                  {eventoData.configuracion?.hora ? format12Hour(eventoData.configuracion.hora) : '—'}
+                </p>
+              </div>
+              <div className="text-center p-6 border-2 border-purple-100 rounded-2xl bg-gradient-to-br from-purple-50 to-white">
+                <div className="text-4xl mb-3">📍</div>
+                <p className="text-sm text-gray-500 mb-1">Lugar</p>
+                <p className="font-bold text-gray-900 text-sm">
+                  {eventoData.configuracion?.lugar || '—'}
+                </p>
+              </div>
+            </div>
+            
+            {eventoData.configuracion?.mensaje && (
+              <div className="text-center p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl mb-6">
+                <p className="text-gray-700 italic">"{eventoData.configuracion.mensaje}"</p>
+              </div>
+            )}
+          </div>
+          
+          <div className={`bg-gradient-to-r ${gradientFrom} ${gradientTo} p-6 text-center`}>
+            <p className="text-white font-bold text-lg">✨ ¡Te esperamos! ✨</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // DISEÑO 3: Baby Shower Temático con Osito (dorado-lujo, arcoiris)
+    if (design === 'dorado-lujo' || design === 'arcoiris') {
+      return (
+        <div className="bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 rounded-3xl shadow-2xl p-8 relative overflow-hidden">
+          <div className="absolute top-4 left-4 text-6xl opacity-50">🎈</div>
+          <div className="absolute top-4 right-4 text-6xl opacity-50">⭐</div>
+          <div className="absolute bottom-4 left-4 text-6xl opacity-50">🧸</div>
+          <div className="absolute bottom-4 right-4 text-6xl opacity-50">🎀</div>
+          
+          <div className="relative z-10 bg-white/90 backdrop-blur rounded-2xl p-8 text-center">
+            <div className="text-7xl mb-6">🧸</div>
+            
+            <p className="text-purple-600 font-semibold mb-2">¡Baby Shower!</p>
+            <h1 className="text-5xl font-bold text-gray-900 mb-4">
+              {eventoData.configuracion?.personalizada?.nombreBebe || 'Nombre del Bebé'}
+            </h1>
+            
+            {eventoData.configuracion?.personalizada?.padres && (
+              <p className="text-gray-600 mb-6">
+                👨‍👩‍👧 {eventoData.configuracion.personalizada.padres}
+              </p>
+            )}
+            
+            <div className="flex items-center justify-center gap-2 my-6">
+              <span className="text-2xl">🎀</span>
+              <div className="h-px w-24 bg-purple-300"></div>
+              <span className="text-2xl">🧸</span>
+              <div className="h-px w-24 bg-purple-300"></div>
+              <span className="text-2xl">🎀</span>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-3xl">📅</span>
+                <span className="text-gray-700 font-medium">
+                  {eventoData.configuracion?.fecha ? formatDateSpanish(eventoData.configuracion.fecha) : 'Por definir'}
+                </span>
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-3xl">🕐</span>
+                <span className="text-gray-700 font-medium">
+                  {eventoData.configuracion?.hora ? format12Hour(eventoData.configuracion.hora) : 'Por definir'}
+                </span>
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-3xl">📍</span>
+                <span className="text-gray-700 font-medium">
+                  {eventoData.configuracion?.lugar || 'Por definir'}
+                </span>
+              </div>
+            </div>
+            
+            {eventoData.configuracion?.mensaje && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4">
+                <p className="text-gray-700 italic">"{eventoData.configuracion.mensaje}"</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // DISEÑO POR DEFECTO
+    return (
+      <div className="bg-white rounded-3xl shadow-2xl p-8">
+        <h1 className="text-4xl font-bold text-center text-purple-600 mb-4">
+          {eventoData.tituloPrincipal || '¡Evento Especial!'}
+        </h1>
+        <p className="text-center text-gray-600 mb-2">{eventoData.subtitulo}</p>
+        <h2 className="text-3xl font-bold text-center text-pink-600 mb-2">
+          {eventoData.configuracion?.personalizada?.nombreBebe || 'Nombre del Bebé'}
+        </h2>
+        {eventoData.configuracion?.personalizada?.padres && (
+          <p className="text-center text-gray-700 font-medium mb-4">
+            👨‍👩‍👧 {eventoData.configuracion.personalizada.padres}
+          </p>
+        )}
+        <p className="text-center text-gray-600 mb-8">{eventoData.mensajeBienvenida}</p>
+        
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-purple-50 rounded-xl p-6 text-center">
+            <div className="text-4xl mb-3">📅</div>
+            <h3 className="font-bold text-gray-900 mb-2">Fecha</h3>
+            <p className="text-gray-600">
+              {eventoData.configuracion?.fecha 
+                ? formatDateSpanish(eventoData.configuracion.fecha) 
+                : 'Por definir'}
+            </p>
+          </div>
+          <div className="bg-purple-50 rounded-xl p-6 text-center">
+            <div className="text-4xl mb-3">🕐</div>
+            <h3 className="font-bold text-gray-900 mb-2">Hora</h3>
+            <p className="text-gray-600">
+              {eventoData.configuracion?.hora 
+                ? format12Hour(eventoData.configuracion.hora) 
+                : 'Por definir'}
+            </p>
+          </div>
+        </div>
+        
+        {eventoData.configuracion?.lugar && (
+          <div className="bg-purple-50 rounded-xl p-6 text-center mb-8">
+            <div className="text-4xl mb-3">📍</div>
+            <h3 className="font-bold text-gray-900 mb-2">Lugar</h3>
+            <p className="text-gray-600">{eventoData.configuracion.lugar}</p>
+          </div>
+        )}
+        
+        {eventoData.configuracion?.mensaje && (
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 text-center mb-8">
+            <p className="text-gray-700 italic">"{eventoData.configuracion.mensaje}"</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <style jsx global>{`
-        @import url('https://cdn.jsdelivr.net/npm/@fontsource/quicksand@4.5.0/index.css');
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Great+Vibes&family=Playfair+Display:wght@400;700&family=Georgia&family=Poppins&family=Montserrat&display=swap');
         
         * {
-          font-family: 'Quicksand', sans-serif;
-        }
-        
-        .card-shadow {
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-        }
-        
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        
-        .gift-card {
-          transition: all 0.3s ease;
-        }
-        
-        .gift-card:hover {
-          transform: translateY(-5px);
-        }
-        
-        .gift-card.selected {
-          border: 3px solid #f472b6;
-          background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
-        }
-        
-        .gift-card.unavailable {
-          opacity: 0.5;
-          pointer-events: none;
-          background: #f3f4f6;
-        }
-        
-        .gift-card.unlimited {
-          border: 2px dashed #60a5fa;
-        }
-        
-        .btn-primary {
-          background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
-          transition: all 0.3s ease;
-        }
-        
-        .btn-primary:hover {
-          background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
-          transform: scale(1.05);
-        }
-        
-        .section-hidden {
-          display: none;
-        }
-        
-        .section-visible {
-          display: block;
-          animation: fadeIn 0.5s ease;
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+          font-family: 'Poppins', sans-serif;
         }
         
         .confetti {
@@ -415,246 +579,293 @@ function InvitationContent() {
           0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
           100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
         }
-        
-        .progress-bar {
-          transition: width 0.5s ease;
-        }
-        
-        .checkmark {
-          animation: checkmark-appear 0.5s ease;
-        }
-        
-        @keyframes checkmark-appear {
-          0% { transform: scale(0); }
-          50% { transform: scale(1.2); }
-          100% { transform: scale(1); }
-        }
       `}</style>
 
-      <div className={`min-h-screen bg-gradient-to-br ${theme.bgGradient}`}>
-        
-        {/* Header */}
-        <header className="relative overflow-hidden">
-          <div className={`w-full h-64 bg-gradient-to-r ${theme.primary} flex items-center justify-center relative`}>
-            <div className="absolute top-4 left-4 text-4xl animate-bounce">{theme.icon}</div>
-            <div className="absolute top-4 right-4 text-4xl animate-bounce delay-500">{theme.icon}</div>
-            <div className="absolute bottom-2 left-10 text-2xl">{theme.headerIcon}</div>
-            <div className="absolute bottom-2 right-12 text-2xl">{theme.headerIcon}</div>
+      {currentSection === 'form' && eventoData && (
+        <GenericInvitationForm 
+          eventId={eventoData.id}
+          eventName={eventoData.nombre}
+          onGuestCreated={handleGuestCreated}
+        />
+      )}
+
+      {guestData && eventoData && currentSection !== 'form' && (
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4">
+          <div className="max-w-7xl mx-auto">
             
-            <div className="text-center relative z-10">
-              <h1 className="text-5xl font-bold text-white drop-shadow-lg mb-2 animate-float">
-                {theme.headerIcon} Baby Shower {theme.headerIcon}
-              </h1>
-              <p className="text-white/95 text-xl font-semibold drop-shadow">{eventoData.nombre}</p>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="container mx-auto px-4 py-8 max-w-4xl">
-          
-          {/* Section 1: Event Information */}
-          {currentSection === 'info' && (
-            <section className="section-visible bg-white rounded-3xl card-shadow p-8 mb-8">
-              <div className="text-center mb-8">
-                <h1 className={`text-4xl font-bold ${theme.accent} mb-4 animate-float`}>{theme.headerIcon} ¡Baby Shower!</h1>
-                <p className="text-xl text-gray-600">Estás invitado a celebrar la llegada de</p>
-                <h2 className={`text-3xl font-bold ${theme.accent} mt-2`}>{eventoData.nombre}</h2>
-                <p className="text-lg text-gray-500 mt-2">y su pequeño tesoro</p>
-              </div>
+            <div className="flex flex-col items-center space-y-8">
               
-              <div className="grid md:grid-cols-2 gap-6 mb-8">
-                <div className={`${theme.lightBg} rounded-2xl p-6 text-center`}>
-                  <div className="text-4xl mb-3">📅</div>
-                  <h3 className="font-bold text-gray-700 mb-2">Fecha</h3>
-                  <p className="text-gray-600">{eventoData.configuracion?.fecha || 'Por definir'}</p>
-                  <p className="text-gray-600">{eventoData.configuracion?.hora || 'Por definir'}</p>
-                </div>
-                
-                <div className={`${theme.lightBg} rounded-2xl p-6 text-center`}>
-                  <div className="text-4xl mb-3">📍</div>
-                  <h3 className="font-bold text-gray-700 mb-2">Lugar</h3>
-                  <p className="text-gray-600">{eventoData.configuracion?.lugar || 'Por definir'}</p>
-                </div>
-              </div>
-              
-              <div className={`${theme.lightBg} rounded-2xl p-6 mb-8`}>
-                <h3 className="font-bold text-gray-700 mb-4 text-center">🎉 Actividades</h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-3xl mb-2">🎮</div>
-                    <p className="text-sm text-gray-600">Juegos y Dinámicas</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl mb-2">🍰</div>
-                    <p className="text-sm text-gray-600">Deliciosa Comida</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl mb-2">🎁</div>
-                    <p className="text-sm text-gray-600">Sorpresas Especiales</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-center">
-                <button 
-                  onClick={() => setCurrentSection('rsvp')}
-                  className={`btn-primary bg-gradient-to-r ${theme.primary} hover:bg-gradient-to-r hover:${theme.buttonHover} text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg`}
+              {/* Contenedor para plantilla - Ajustado para dimensiones personalizadas */}
+              <div className="w-full flex justify-center">
+                <div 
+                  className="w-full"
+                  style={{ 
+                    maxWidth: plantilla?.anchoPlantilla 
+                      ? Math.min(plantilla.anchoPlantilla, 800) 
+                      : '672px' 
+                  }}
                 >
-                  ✨ Confirmar Asistencia ✨
-                </button>
-              </div>
-            </section>
-          )}
-
-          {/* Section 2: RSVP */}
-          {currentSection === 'rsvp' && (
-            <section className="section-visible bg-white rounded-3xl card-shadow p-8 mb-8">
-              <div className="text-center mb-8">
-                <h2 className={`text-3xl font-bold ${theme.accent} mb-4`}>Confirmación de Asistencia</h2>
-                <p className="text-gray-600">¡Hola, {guestData.nombre}! Por favor confirma tu presencia</p>
-              </div>
-              
-              <div className={`${theme.lightBg} rounded-2xl p-6 mb-8 text-center`}>
-                <p className="text-gray-700 mb-4">{eventoData.configuracion?.mensaje || 'Nos haría muy feliz contar con tu presencia para celebrar la llegada de nuestro bebé.'}</p>
-                <div className="flex justify-center gap-4">
-                  <span className="text-3xl">{theme.icon}</span>
-                  <span className="text-3xl">{theme.headerIcon}</span>
-                  <span className="text-3xl">{theme.icon}</span>
+                  {plantilla ? (
+                    <InvitationRenderer
+                      plantilla={plantilla}
+                      eventData={eventoData}
+                      onConfirm={() => setCurrentSection('rsvp')}
+                      onGifts={() => setCurrentSection('gifts')}
+                      currentSection={currentSection}
+                    />
+                  ) : (
+                    renderDesign()
+                  )}
                 </div>
               </div>
               
-              <div className="text-center">
-                <button 
-                  onClick={confirmAttendance}
-                  disabled={confirming}
-                  className={`btn-primary bg-gradient-to-r ${theme.primary} hover:bg-gradient-to-r hover:${theme.buttonHover} text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {confirming ? '⏳ Confirmando...' : '✅ Confirmar Asistencia'}
-                </button>
-              </div>
-            </section>
-          )}
-
-          {/* Section 3: Confirmation */}
-          {currentSection === 'confirmation' && (
-            <section className="section-visible bg-white rounded-3xl card-shadow p-8 mb-8 text-center">
-              <div className="animate-float mb-6">
-                <svg className="w-24 h-24 mx-auto text-green-500 checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-3xl font-bold text-green-600 mb-4">¡Confirmación Exitosa!</h2>
-              <p className="text-gray-600 mb-6">Gracias por confirmar tu asistencia. Estamos muy emocionados de celebrarte.</p>
-              <div className={`${theme.lightBg} rounded-2xl p-6 mb-6`}>
-                <p className={`${theme.accent} font-bold`}>🎁 Ahora puedes seleccionar tu regalo</p>
-              </div>
-              <button 
-                onClick={() => setCurrentSection('gifts')}
-                className={`btn-primary bg-gradient-to-r ${theme.primary} hover:bg-gradient-to-r hover:${theme.buttonHover} text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg`}
-              >
-                🎁 Ver Lista de Regalos
-              </button>
-            </section>
-          )}
-
-          {/* Section 4: Gift Wishlist */}
-          {currentSection === 'gifts' && (
-            <section className="section-visible bg-white rounded-3xl card-shadow p-8 mb-8">
-              <div className="text-center mb-8">
-                <h2 className={`text-3xl font-bold ${theme.accent} mb-4`}>Lista de Deseos</h2>
-                <p className="text-gray-600 mb-4">Selecciona un regalo para ayudar a los papás</p>
-                <div className="bg-blue-50 rounded-xl p-4 inline-block">
-                  <p className="text-sm text-blue-600">
-                    <span className="font-bold">💡 Tip:</span> Los artículos con borde punteado azul son ilimitados
-                  </p>
-                </div>
-              </div>
-              
-              {/* Progress Bar */}
-              <div className="mb-8">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Regalos seleccionados</span>
-                  <span className={`${theme.accent} font-bold`}>{selectedCount}/{totalCount}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-4">
-                  <div 
-                    className={`progress-bar bg-gradient-to-r ${theme.primary} h-4 rounded-full`} 
-                    style={{ width: `${progressPercentage}%` }}
-                  />
-                </div>
-              </div>
-              
-              {/* Gift Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {gifts.map((gift) => (
-                  <div 
-                    key={gift.id}
-                    className={`gift-card rounded-2xl p-6 cursor-pointer ${
-                      (!gift.disponible && !gift.ilimitado) ? 'unavailable' : ''
-                    } ${gift.ilimitado ? 'unlimited' : ''} ${
-                      gift.seleccionado ? 'selected' : 'bg-white border-2 border-gray-200'
-                    }`}
-                    onClick={() => (gift.disponible || gift.ilimitado) && selectGift(gift.id)}
-                  >
-                    <div className="text-5xl mb-4 text-center">{gift.imagen || '🎁'}</div>
-                    <h3 className="font-bold text-gray-700 mb-2">{gift.nombre}</h3>
-                    <p className={`${theme.accent} font-bold mb-3`}>{gift.precio || 'Consultar'}</p>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm ${gift.ilimitado ? 'text-blue-600' : 'text-gray-500'}`}>
-                        {gift.ilimitado ? '♾️ Ilimitado' : (gift.disponible ? '✅ Disponible' : '❌ No disponible')}
-                      </span>
-                      {gift.seleccionado && <span className="text-green-600 font-bold">✓ Seleccionado</span>}
+              {/* Botones centrados debajo de la tarjeta - SOLO en info */}
+              {currentSection === 'info' && (
+                <div className="flex flex-col items-center space-y-4 w-full max-w-md">
+                  
+                  {/* Mostrar botón Confirmar - SI NO ha confirmado */}
+                  {!guestData.confirmado && (
+                    <button
+                      onClick={() => setCurrentSection('rsvp')}
+                      className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg transition transform hover:scale-105"
+                    >
+                      ✨ Confirmar Asistencia
+                    </button>
+                  )}
+                  
+                  {/* Mostrar botón Ver Regalos - Si confirmó pero NO seleccionó regalo */}
+                  {guestData.confirmado && !guestData.regaloSeleccionado && (
+                    <button
+                      onClick={() => setCurrentSection('gifts')}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg transition transform hover:scale-105"
+                    >
+                      🎁 Ver Lista de Regalos
+                    </button>
+                  )}
+                  
+                  {/* SIN BOTONES - Si ya confirmó y seleccionó regalo */}
+                  {guestData.confirmado && guestData.regaloSeleccionado && (
+                    <div className="text-center py-4">
+                      <p className="text-green-600 font-semibold text-lg">
+                        ✅ ¡Gracias por confirmar!
+                      </p>
+                      <p className="text-gray-600 text-sm mt-2">
+                        Tu regalo ha sido registrado
+                      </p>
                     </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Selection Confirmation */}
-              {selectedGiftId && (
-                <div className="mt-8 bg-green-50 rounded-2xl p-6 text-center">
-                  <svg className="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h3 className="text-2xl font-bold text-green-600 mb-2">¡Regalo Seleccionado!</h3>
-                  <p className="text-gray-600 mb-4">{gifts.find(g => g.id === selectedGiftId)?.nombre}</p>
-                  <p className="text-sm text-gray-500">Gracias por tu generosidad. Los padres estarán muy felices.</p>
+                  )}
+                  
                 </div>
               )}
-            </section>
-          )}
-
-          {/* Section 5: Final Thank You */}
-          {currentSection === 'thankyou' && (
-            <section className="section-visible bg-white rounded-3xl card-shadow p-8 mb-8 text-center">
-              <div className="text-7xl mb-6 animate-float">{theme.icon}{theme.headerIcon}{theme.icon}</div>
-              <h2 className={`text-3xl font-bold ${theme.accent} mb-4`}>¡Gracias por ser parte de este momento especial!</h2>
-              <p className="text-gray-600 mb-6">Tu presencia y regalo hacen que este día sea aún más memorable.</p>
-              <div className={`${theme.lightBg} rounded-2xl p-6`}>
-                <p className={`${theme.accent} font-bold`}>📱 ¿Tienes preguntas?</p>
-                <p className="text-gray-600">Contáctanos por WhatsApp</p>
+              
+            </div>
+            
+            {/* Sección RSVP */}
+            {currentSection === 'rsvp' && (
+              <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl p-8 mt-8">
+                <h2 className="text-3xl font-bold text-center text-purple-600 mb-6">
+                  Confirmación de Asistencia
+                </h2>
+                <p className="text-center text-gray-600 mb-6">
+                  ¡Hola, {guestData.nombre}! Por favor confirma tu presencia
+                </p>
+                <div className="text-center space-y-4">
+                  <button
+                    onClick={confirmAttendance}
+                    disabled={confirming}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg disabled:opacity-50"
+                  >
+                    {confirming ? '⏳ Confirmando...' : '✅ Confirmar Asistencia'}
+                  </button>
+                  <button
+                    onClick={() => setCurrentSection('info')}
+                    className="bg-gradient-to-r from-gray-600 to-gray-700 hover:opacity-90 text-white font-bold py-3 px-8 rounded-full shadow-lg transition"
+                  >
+                    ← Volver a la Invitación
+                  </button>
+                </div>
               </div>
-            </section>
-          )}
+            )}
+            
+            {/* Sección Confirmation */}
+            {currentSection === 'confirmation' && (
+              <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl p-8 mt-8 text-center">
+                <div className="text-7xl mb-6">🎉</div>
+                <h2 className="text-3xl font-bold text-green-600 mb-4">
+                  ¡Confirmación Exitosa!
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Gracias por confirmar tu asistencia.
+                </p>
+                <div className="space-y-4">
+                  <button
+                    onClick={() => setCurrentSection('gifts')}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-4 px-12 rounded-full text-lg shadow-lg"
+                  >
+                    🎁 Ver Lista de Regalos
+                  </button>
+                  <button
+                    onClick={() => setCurrentSection('info')}
+                    className="bg-gradient-to-r from-gray-600 to-gray-700 hover:opacity-90 text-white font-bold py-3 px-8 rounded-full shadow-lg transition"
+                  >
+                    ← Volver a la Invitación
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Sección Gifts */}
+            {currentSection === 'gifts' && (
+              <div className="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8 mt-8">
+                <h2 className="text-3xl font-bold text-center text-purple-600 mb-2">
+                  Lista de Regalos
+                </h2>
+                <p className="text-center text-gray-600 mb-8">
+                  Selecciona los regalos que deseas dar y confirma tu selección
+                </p>
+                
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {gifts.map((gift, index) => (
+                    <div
+                      key={gift.id}
+                      className={`border-2 rounded-xl p-6 transition cursor-pointer ${
+                        selectedGiftId === gift.id
+                          ? 'border-purple-500 bg-purple-50 shadow-lg'
+                          : gift.disponible
+                          ? 'border-purple-200 hover:shadow-lg hover:border-purple-300'
+                          : 'border-gray-200 opacity-50 cursor-not-allowed'
+                      }`}
+                      onClick={() => gift.disponible && setSelectedGiftId(gift.id)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 mt-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedGiftId === gift.id}
+                            onChange={() => {}}
+                            disabled={!gift.disponible}
+                            className="w-5 h-5 rounded-lg border-2 border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                          />
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="text-4xl mb-3">{gift.imagen || '🎁'}</div>
+                          <h3 className="font-bold text-gray-900 text-lg mb-2">
+                            {gift.nombre}
+                          </h3>
+                          
+                          <div className="flex items-center gap-2 text-sm mb-2">
+                            {gift.ilimitado ? (
+                              <span className="text-blue-600 font-semibold">
+                                ♾️ Stock Ilimitado
+                              </span>
+                            ) : (
+                              <span className="text-gray-600">
+                                📦 Stock: <strong>{gift.stock}</strong> disponible
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            {gift.disponible ? (
+                              <span className="inline-flex items-center gap-1 text-sm text-green-600 font-medium">
+                                ✅ Disponible
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-sm text-red-600 font-medium">
+                                ❌ Agotado
+                              </span>
+                            )}
+                            {gift.seleccionado && (
+                              <span className="inline-flex items-center gap-1 text-sm text-purple-600 font-medium ml-2">
+                                🎯 Seleccionado por ti
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-        </main>
+                {selectedGiftId && (
+                  <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-6 mb-6">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div>
+                        <p className="text-gray-700 font-semibold mb-1">
+                          🎁 Regalo seleccionado:
+                        </p>
+                        <p className="text-purple-900 font-bold text-lg">
+                          {gifts.find(g => g.id === selectedGiftId)?.nombre}
+                        </p>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setSelectedGiftId(null)}
+                          className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => selectedGiftId && selectGift(selectedGiftId)}
+                          disabled={confirming}
+                          className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg shadow-lg transition disabled:opacity-50"
+                        >
+                          {confirming ? '⏳ Confirmando...' : '✅ Confirmar Selección'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-        {/* Footer */}
-        <footer className="bg-white py-8 mt-12">
-          <div className="container mx-auto px-4 text-center">
-            <p className="text-gray-500">Hecho con 💕 para {eventoData.nombre}</p>
-            <p className="text-gray-400 text-sm mt-2">Baby Shower {new Date().getFullYear()}</p>
+                {guestData.regaloSeleccionado && (
+                  <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
+                    <p className="text-green-800 font-semibold text-lg">
+                      ✅ Ya has seleccionado un regalo
+                    </p>
+                    <p className="text-green-600 mt-2">
+                      {gifts.find(g => g.id === guestData.regaloSeleccionado)?.nombre}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-8 text-center">
+                  <button
+                    onClick={() => setCurrentSection('info')}
+                    className="bg-gradient-to-r from-gray-600 to-gray-700 hover:opacity-90 text-white font-bold py-3 px-8 rounded-full shadow-lg transition"
+                  >
+                    ← Volver a la Invitación
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Sección Thank You */}
+            {currentSection === 'thankyou' && (
+              <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl p-8 mt-8 text-center">
+                <div className="text-7xl mb-6">🎊</div>
+                <h2 className="text-3xl font-bold text-purple-600 mb-4">
+                  ¡Gracias por ser parte de este momento especial!
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Tu presencia y regalo hacen que este día sea aún más memorable.
+                </p>
+                {eventoData?.configuracion?.mapaUrl && (
+                  <a
+                    href={eventoData.configuracion.mapaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-full shadow-lg transition transform hover:scale-105"
+                  >
+                    📍 Ver Ubicación del Evento
+                  </a>
+                )}
+              </div>
+            )}
+            
           </div>
-        </footer>
-
-        {/* Floating Share Button */}
-        <button 
-          onClick={shareToWhatsApp}
-          className={`fixed bottom-6 right-6 bg-gradient-to-r ${theme.primary} hover:bg-gradient-to-r hover:${theme.buttonHover} text-white font-bold py-4 px-6 rounded-full shadow-lg z-50 flex items-center gap-2 transition transform hover:scale-105`}
-        >
-          📤 Compartir
-        </button>
-      </div>
+        </div>
+      )}
     </>
   );
 }
@@ -662,10 +873,10 @@ function InvitationContent() {
 export default function Home() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-blue-50 to-pink-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-bounce">🎀</div>
-          <p className="text-gray-700 text-lg font-medium" style={{ fontFamily: "'Quicksand', sans-serif" }}>Cargando invitación...</p>
+          <div className="text-6xl mb-4 animate-bounce">🎉</div>
+          <p className="text-gray-700 text-lg font-medium">Cargando invitación...</p>
         </div>
       </div>
     }>
