@@ -1,6 +1,6 @@
 // src/components/admin/InvitationRenderer.tsx
 'use client';
-import { Plantilla, CustomTextField } from '@/lib/templates';
+import { Plantilla, CustomTextField, sanitizeHtml, replaceTemplateVariables } from '@/lib/templates';
 
 interface Props {
   plantilla: Plantilla;
@@ -102,6 +102,103 @@ export default function InvitationRenderer({
     const scaled = value * scaleFactor;
     return `${scaled}px`;
   };
+
+  // HTML template rendering
+  if (plantilla.tipo === 'html' && plantilla.htmlContent) {
+    const config = eventData.configuracion || {};
+    const personalizada = config.personalizada || {};
+    
+    const variables: Record<string, string> = {
+      titulo: eventData.tituloPrincipal || '',
+      nombre: personalizada.nombreBebe || '',
+      fecha: config.fecha || '',
+      hora: config.hora || '',
+      lugar: config.lugar || '',
+      mensaje: config.mensaje || '',
+      versiculo: personalizada.versiculo || '',
+      padres: personalizada.padres || '',
+      genero: personalizada.genero || '',
+      edad: personalizada.edad || '',
+      temaFiesta: personalizada.temaFiesta || '',
+      novioNombre: personalizada.novioNombre || '',
+      noviaNombre: personalizada.noviaNombre || '',
+      graduadoNombre: personalizada.graduadoNombre || '',
+    };
+
+    const processedHtml = replaceTemplateVariables(sanitizeHtml(plantilla.htmlContent), variables);
+
+    return (
+      <div className="relative w-full flex justify-center">
+        <div className="w-full" style={{ maxWidth: '800px' }}>
+          <iframe
+            srcDoc={processedHtml}
+            title="Invitación"
+            className="w-full border-0"
+            style={{ height: plantilla.altoPlantilla || 1200, maxHeight: '90vh' }}
+            sandbox="allow-same-origin"
+          />
+          {currentSection === 'info' && (
+            <div className="flex flex-col items-center gap-3 mt-4">
+              {botones?.confirmar && (
+                <button
+                  onClick={onConfirm}
+                  className="font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105 cursor-pointer"
+                  style={{
+                    width: botones.confirmar.ancho || 280,
+                    height: botones.confirmar.alto || 55,
+                    backgroundColor: botones.confirmar.color || '#ec4899',
+                    color: botones.confirmar.colorTexto || '#ffffff',
+                    borderRadius: '25px',
+                    fontSize: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    fontWeight: '700',
+                  }}
+                >
+                  {botones.confirmar.texto || '✨ Confirmar Asistencia'}
+                </button>
+              )}
+              {botones?.regalos && (
+                <button
+                  onClick={onGifts}
+                  className="font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105 cursor-pointer"
+                  style={{
+                    width: botones.regalos.ancho || 280,
+                    height: botones.regalos.alto || 55,
+                    backgroundColor: botones.regalos.color || '#8b5cf6',
+                    color: botones.regalos.colorTexto || '#ffffff',
+                    borderRadius: '25px',
+                    fontSize: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    fontWeight: '700',
+                  }}
+                >
+                  {botones.regalos.texto || '🎁 Ver Lista de Regalos'}
+                </button>
+              )}
+              {botones?.mapa && (
+                <button
+                  onClick={() => window.open(getMapUrl(), '_blank')}
+                  className="font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105 cursor-pointer"
+                  style={{
+                    width: botones.mapa.ancho || 280,
+                    height: botones.mapa.alto || 55,
+                    backgroundColor: botones.mapa.color || '#10b981',
+                    color: botones.mapa.colorTexto || '#ffffff',
+                    borderRadius: '25px',
+                    fontSize: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    fontWeight: '700',
+                  }}
+                >
+                  {botones.mapa.texto || '📍 Ver Ubicación'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full flex justify-center">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plantilla, CustomTextField, createPlantilla, getPlantillas, updatePlantilla, deletePlantilla } from '@/lib/templates';
 import TemplateUploader from '@/components/admin/TemplateUploader';
+import TemplateHtmlUploader from '@/components/admin/TemplateHtmlUploader';
 import TemplateConfigurator from '@/components/admin/TemplateConfigurator';
 import { useModal } from '@/components/Modal';
 
@@ -43,6 +44,8 @@ export default function PlantillasPage() {
   const [descripcion, setDescripcion] = useState('');
   const [precioSugerido, setPrecioSugerido] = useState(1500);
   const [imagenBase64, setImagenBase64] = useState('');
+  const [tipoPlantilla, setTipoPlantilla] = useState<'imagen' | 'html'>('imagen');
+  const [htmlContent, setHtmlContent] = useState('');
   const [campos, setCampos] = useState<Plantilla['campos']>({});
   const [botones, setBotones] = useState<Plantilla['botones']>({});
   const [anchoPlantilla, setAnchoPlantilla] = useState(675);
@@ -87,6 +90,8 @@ export default function PlantillasPage() {
     setDescripcion('');
     setPrecioSugerido(1500);
     setImagenBase64('');
+    setTipoPlantilla('imagen');
+    setHtmlContent('');
     setCampos({});
     setBotones({});
     setAnchoPlantilla(675);
@@ -102,6 +107,8 @@ export default function PlantillasPage() {
     setDescripcion(plantilla.descripcion || '');
     setPrecioSugerido(plantilla.precioSugerido || 1500);
     setImagenBase64(plantilla.imagenFondo);
+    setTipoPlantilla(plantilla.tipo || 'imagen');
+    setHtmlContent(plantilla.htmlContent || '');
     setCampos(plantilla.campos || {});
     setBotones(plantilla.botones || {});
     setAnchoPlantilla(plantilla.anchoPlantilla || 675);
@@ -111,8 +118,16 @@ export default function PlantillasPage() {
   };
 
   const handleSave = async () => {
-    if (!nombre || !imagenBase64) {
-      showAlert('Por favor completa el nombre y sube una imagen', 'warning');
+    if (!nombre) {
+      showAlert('Por favor completa el nombre de la plantilla', 'warning');
+      return;
+    }
+    if (tipoPlantilla === 'imagen' && !imagenBase64) {
+      showAlert('Por favor sube una imagen de fondo', 'warning');
+      return;
+    }
+    if (tipoPlantilla === 'html' && !htmlContent) {
+      showAlert('Por favor sube o escribe el contenido HTML', 'warning');
       return;
     }
 
@@ -124,7 +139,9 @@ export default function PlantillasPage() {
           categoria,
           descripcion,
           precioSugerido,
-          imagenFondo: imagenBase64,
+          imagenFondo: tipoPlantilla === 'imagen' ? imagenBase64 : '',
+          tipo: tipoPlantilla,
+          htmlContent: tipoPlantilla === 'html' ? htmlContent : '',
           campos,
           botones,
           anchoPlantilla,
@@ -258,14 +275,55 @@ export default function PlantillasPage() {
             </div>
 
             <div className="mb-6">
-              <TemplateUploader
-                onImageUploaded={handleImageUploaded}
-                existingImage={imagenBase64}
-              />
+              <label className="block text-gray-900 font-semibold mb-3">
+                Tipo de Plantilla *
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTipoPlantilla('imagen')}
+                  className={`flex-1 py-4 px-6 rounded-xl font-semibold transition border-2 ${
+                    tipoPlantilla === 'imagen'
+                      ? 'border-purple-500 bg-purple-50 text-purple-700'
+                      : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  <div className="text-3xl mb-2">🖼️</div>
+                  <div>Imagen de Fondo</div>
+                  <p className="text-xs mt-1 font-normal">Sube una imagen y posiciona texto encima</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipoPlantilla('html')}
+                  className={`flex-1 py-4 px-6 rounded-xl font-semibold transition border-2 ${
+                    tipoPlantilla === 'html'
+                      ? 'border-purple-500 bg-purple-50 text-purple-700'
+                      : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  <div className="text-3xl mb-2">📄</div>
+                  <div>HTML Personalizado</div>
+                  <p className="text-xs mt-1 font-normal">Sube o escribe un archivo HTML con diseño libre</p>
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              {tipoPlantilla === 'imagen' ? (
+                <TemplateUploader
+                  onImageUploaded={handleImageUploaded}
+                  existingImage={imagenBase64}
+                />
+              ) : (
+                <TemplateHtmlUploader
+                  onHtmlUploaded={(html) => setHtmlContent(html)}
+                  existingHtml={htmlContent}
+                />
+              )}
             </div>
           </div>
 
-          {imagenBase64 && (
+          {tipoPlantilla === 'imagen' && imagenBase64 && (
             <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
               <TemplateConfigurator
                 previewImage={imagenBase64}
@@ -278,7 +336,7 @@ export default function PlantillasPage() {
           <div className="flex gap-4">
             <button
               onClick={handleSave}
-              disabled={saving || !nombre || !imagenBase64}
+              disabled={saving || !nombre || (tipoPlantilla === 'imagen' && !imagenBase64) || (tipoPlantilla === 'html' && !htmlContent)}
               className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
             >
               {saving ? (
@@ -357,16 +415,32 @@ export default function PlantillasPage() {
                 key={plantilla.id}
                 className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition"
               >
-                <img
-                  src={plantilla.imagenFondo}
-                  alt={plantilla.nombre}
-                  className="w-full h-48 object-cover"
-                />
+                {plantilla.tipo === 'html' ? (
+                  <div className="w-full h-48 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-5xl mb-2">📄</div>
+                      <p className="text-purple-600 font-semibold text-sm">Plantilla HTML</p>
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    src={plantilla.imagenFondo}
+                    alt={plantilla.nombre}
+                    className="w-full h-48 object-cover"
+                  />
+                )}
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
-                      {plantilla.categoria}
-                    </span>
+                    <div className="flex gap-1">
+                      <span className="text-xs font-semibold bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+                        {plantilla.categoria}
+                      </span>
+                      {plantilla.tipo === 'html' && (
+                        <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                          HTML
+                        </span>
+                      )}
+                    </div>
                     <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
                       plantilla.activa ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                     }`}>

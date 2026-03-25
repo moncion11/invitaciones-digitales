@@ -37,6 +37,10 @@ export interface Plantilla {
   precioSugerido?: number;
   imagenFondo: string;
   
+  // Tipo de plantilla
+  tipo?: 'imagen' | 'html';
+  htmlContent?: string;
+  
   // Dimensiones personalizadas
   anchoPlantilla?: number;
   altoPlantilla?: number;
@@ -147,4 +151,33 @@ export async function getPlantillasByCategoria(categoria: string): Promise<Plant
   return snapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() } as Plantilla))
     .filter(p => p.categoria === categoria && p.activa);
+}
+
+export function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/on\w+\s*=\s*\S+/gi, '')
+    .replace(/javascript\s*:/gi, '')
+    .replace(/<iframe\b[^>]*>/gi, '')
+    .replace(/<\/iframe>/gi, '')
+    .replace(/<object\b[^>]*>/gi, '')
+    .replace(/<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
+    .replace(/<\/embed>/gi, '');
+}
+
+export function replaceTemplateVariables(html: string, variables: Record<string, string>): string {
+  let result = html;
+  for (const [key, value] of Object.entries(variables)) {
+    const escapedValue = value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), escapedValue);
+  }
+  // Remove any unreplaced variables
+  result = result.replace(/\{\{[^}]+\}\}/g, '');
+  return result;
 }
