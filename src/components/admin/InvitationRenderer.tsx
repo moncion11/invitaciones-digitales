@@ -1,6 +1,6 @@
 // src/components/admin/InvitationRenderer.tsx
 'use client';
-import { Plantilla, CustomTextField, sanitizeHtml, replaceTemplateVariables } from '@/lib/templates';
+import { Plantilla, CustomTextField, sanitizeHtml, replaceTemplateVariables, detectCountdownElements, injectCountdownScript } from '@/lib/templates';
 
 interface Props {
   plantilla: Plantilla;
@@ -125,7 +125,22 @@ export default function InvitationRenderer({
       graduadoNombre: personalizada.graduadoNombre || '',
     };
 
-    const processedHtml = replaceTemplateVariables(sanitizeHtml(plantilla.htmlContent), variables);
+    // Sanitizar primero (elimina scripts del usuario)
+    let processedHtml = sanitizeHtml(plantilla.htmlContent);
+    
+    // Detectar si hay elementos countdown
+    const hasCountdown = detectCountdownElements(processedHtml);
+    
+    // Si hay countdown, inyectar script seguro del sistema
+    if (hasCountdown) {
+      processedHtml = injectCountdownScript(processedHtml, config.fecha, config.hora);
+    }
+    
+    // Reemplazar variables
+    processedHtml = replaceTemplateVariables(processedHtml, variables);
+    
+    // Determinar sandbox: agregar allow-scripts solo si hay countdown
+    const sandboxValue = hasCountdown ? 'allow-same-origin allow-scripts' : 'allow-same-origin';
 
     return (
       <div className="relative w-full flex justify-center">
@@ -135,7 +150,7 @@ export default function InvitationRenderer({
             title="Invitación"
             className="w-full border-0"
             style={{ height: plantilla.altoPlantilla || 1200, maxHeight: '90vh' }}
-            sandbox="allow-same-origin"
+            sandbox={sandboxValue}
           />
           {currentSection === 'info' && (
             <div className="flex flex-col items-center gap-3 mt-4">

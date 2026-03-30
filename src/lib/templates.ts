@@ -181,3 +181,137 @@ export function replaceTemplateVariables(html: string, variables: Record<string,
   result = result.replace(/\{\{[^}]+\}\}/g, '');
   return result;
 }
+
+/**
+ * Detecta si el HTML contiene elementos de countdown
+ * Busca IDs, clases y atributos data comunes en templates de countdown
+ */
+export function detectCountdownElements(html: string): boolean {
+  const countdownPatterns = [
+    // IDs comunes
+    /id=["']?(days|hours|minutes|seconds)["']?/i,
+    /id=["']?countdown["']?/i,
+    // Clases comunes
+    /class=["'][^"']*countdown[^"']*["']/i,
+    /class=["'][^"']*(days|hours|minutes|seconds)[^"']*["']/i,
+    // Atributos data
+    /data-countdown/i,
+    /data-timer/i,
+  ];
+  
+  return countdownPatterns.some(pattern => pattern.test(html));
+}
+
+/**
+ * Inyecta un script seguro de countdown que actualiza elementos con IDs/clases estándar
+ * El script lee la fecha del evento y actualiza los elementos automáticamente
+ */
+export function injectCountdownScript(html: string, eventDate: string, eventTime: string = '00:00'): string {
+  // Si no hay fecha válida, no inyectar script
+  if (!eventDate || eventDate === 'Por definir') {
+    return html;
+  }
+
+  const countdownScript = `
+<script>
+(function() {
+  // Parseamos la fecha del evento
+  const eventDateStr = '${eventDate.replace(/'/g, "\\'")}';
+  const eventTimeStr = '${eventTime.replace(/'/g, "\\'")}';
+  
+  // Intentar parsear diferentes formatos de fecha
+  let eventDate;
+  
+  // Formato ISO (YYYY-MM-DD)
+  if (eventDateStr.match(/^\\d{4}-\\d{2}-\\d{2}$/)) {
+    eventDate = new Date(eventDateStr + 'T' + eventTimeStr + ':00');
+  }
+  // Formato DD/MM/YYYY o similar
+  else {
+    const parts = eventDateStr.split(/[\\/\\-.]/);
+    if (parts.length === 3) {
+      // Intentar DD/MM/YYYY
+      const day = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1; // Meses en JS son 0-indexed
+      const year = parseInt(parts[2]);
+      
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        const [hours, minutes] = eventTimeStr.split(':').map(n => parseInt(n) || 0);
+        eventDate = new Date(year, month, day, hours, minutes, 0);
+      }
+    }
+  }
+  
+  // Si no se pudo parsear, intentar con Date.parse
+  if (!eventDate || isNaN(eventDate.getTime())) {
+    eventDate = new Date(eventDateStr + ' ' + eventTimeStr);
+  }
+  
+  // Si aún no es válida, salir
+  if (isNaN(eventDate.getTime())) {
+    console.warn('No se pudo parsear la fecha del evento:', eventDateStr);
+    return;
+  }
+  
+  function updateCountdown() {
+    const now = new Date().getTime();
+    const distance = eventDate.getTime() - now;
+    
+    if (distance < 0) {
+      // El evento ya pasó
+      ['days', 'hours', 'minutes', 'seconds'].forEach(unit => {
+        const elements = [
+          document.getElementById(unit),
+          ...Array.from(document.getElementsByClassName('countdown-' + unit)),
+          ...Array.from(document.querySelectorAll('[data-countdown="' + unit + '"]'))
+        ].filter(Boolean);
+        
+        elements.forEach(el => {
+          if (el) el.textContent = '00';
+        });
+      });
+      return;
+    }
+    
+    // Calcular tiempo restante
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+    
+    const values = { days, hours, minutes, seconds };
+    
+    // Actualizar todos los elementos encontrados
+    Object.entries(values).forEach(([unit, value]) => {
+      const paddedValue = String(value).padStart(2, '0');
+      
+      // Buscar por ID
+      const byId = document.getElementById(unit);
+      if (byId) byId.textContent = paddedValue;
+      
+      // Buscar por clase
+      const byClass = document.getElementsByClassName('countdown-' + unit);
+      Array.from(byClass).forEach(el => el.textContent = paddedValue);
+      
+      // Buscar por atributo data
+      const byData = document.querySelectorAll('[data-countdown="' + unit + '"]');
+      Array.from(byData).forEach(el => el.textContent = paddedValue);
+    });
+  }
+  
+  // Actualizar inmediatamente y luego cada segundo
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+})();
+</script>
+  `.trim();
+
+  // Inyectar antes del cierre de </body> o al final si no hay body
+  if (html.includes('</body>')) {
+    return html.replace('</body>', countdownScript + '\n</body>');
+  } else if (html.includes('</html>')) {
+    return html.replace('</html>', countdownScript + '\n</html>');
+  } else {
+    return html + '\n' + countdownScript;
+  }
+}
