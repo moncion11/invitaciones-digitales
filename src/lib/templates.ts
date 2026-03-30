@@ -154,17 +154,72 @@ export async function getPlantillasByCategoria(categoria: string): Promise<Plant
 }
 
 export function sanitizeHtml(html: string): string {
-  return html
+  // Lista de CDNs confiables permitidos
+  const allowedCDNs = [
+    'https://cdn.tailwindcss.com',
+    'https://cdn.jsdelivr.net',
+    'https://unpkg.com',
+    'https://cdnjs.cloudflare.com',
+    'https://maxcdn.bootstrapcdn.com',
+    'https://stackpath.bootstrapcdn.com',
+    'https://fonts.googleapis.com',
+    'https://fonts.gstatic.com',
+    'https://code.jquery.com',
+  ];
+
+  // Paso 1: Extraer y preservar scripts externos de CDNs confiables
+  const allowedScriptTags: string[] = [];
+  let sanitized = html.replace(/<script\s+([^>]*?)src=["']([^"']+)["']([^>]*?)>[\s\S]*?<\/script>/gi, (match, before, src, after) => {
+    // Verificar si el src es de un CDN confiable
+    const isAllowed = allowedCDNs.some(cdn => src.startsWith(cdn));
+    if (isAllowed) {
+      // Preservar este script
+      const placeholder = `<!--ALLOWED_SCRIPT_${allowedScriptTags.length}-->`;
+      allowedScriptTags.push(match);
+      return placeholder;
+    }
+    // Eliminar scripts de fuentes no confiables
+    return '';
+  });
+
+  // Paso 2: Preservar bloques de configuración de Tailwind
+  const tailwindConfigs: string[] = [];
+  sanitized = sanitized.replace(/<script\b[^>]*>([\s\S]*?tailwind\.config[\s\S]*?)<\/script>/gi, (match, content) => {
+    // Solo permitir si es configuración pura (no tiene otras llamadas sospechosas)
+    if (!content.match(/(fetch|XMLHttpRequest|eval|Function|document\.|window\.location)/i)) {
+      const placeholder = `<!--TAILWIND_CONFIG_${tailwindConfigs.length}-->`;
+      tailwindConfigs.push(match);
+      return placeholder;
+    }
+    return '';
+  });
+
+  // Paso 3: Eliminar TODOS los demás scripts inline
+  sanitized = sanitized
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    // Eliminar event handlers inline
     .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
     .replace(/on\w+\s*=\s*\S+/gi, '')
+    // Eliminar javascript: URLs
     .replace(/javascript\s*:/gi, '')
+    // Eliminar iframes, objects, embeds
     .replace(/<iframe\b[^>]*>/gi, '')
     .replace(/<\/iframe>/gi, '')
     .replace(/<object\b[^>]*>/gi, '')
     .replace(/<\/object>/gi, '')
     .replace(/<embed\b[^>]*>/gi, '')
     .replace(/<\/embed>/gi, '');
+
+  // Paso 4: Re-insertar scripts permitidos en sus posiciones originales
+  allowedScriptTags.forEach((script, index) => {
+    sanitized = sanitized.replace(`<!--ALLOWED_SCRIPT_${index}-->`, script);
+  });
+
+  tailwindConfigs.forEach((config, index) => {
+    sanitized = sanitized.replace(`<!--TAILWIND_CONFIG_${index}-->`, config);
+  });
+
+  return sanitized;
 }
 
 export function replaceTemplateVariables(html: string, variables: Record<string, string>): string {
