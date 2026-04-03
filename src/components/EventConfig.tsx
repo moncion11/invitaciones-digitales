@@ -712,6 +712,19 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
       />
     </div>
+
+    <div>
+      <label className="block text-gray-900 font-semibold mb-2">
+        Versículo Bíblico
+      </label>
+      <textarea
+        value={configPersonalizada?.versiculo || ''}
+        onChange={(e) => handleConfigPersonalizadaChange('versiculo', e.target.value)}
+        placeholder="Ej: He aquí, herencia de Jehová son los hijos; Cosa de estima el fruto del vientre. — Salmos 127:3"
+        rows={3}
+        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 resize-none"
+      />
+    </div>
   </div>
         )}
 

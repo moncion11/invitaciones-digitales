@@ -1,10 +1,12 @@
-// cors.json
 [
   {
     "origin": [
       "http://localhost:3000",
       "https://invitaciones-digitales-nvy.vercel.app",
-      "https://invitaciones-digitales.vercel.app"
+      "https://invitaciones-digitales.vercel.app",
+      "https://baby-shower-invite-f93ae.web.app",
+      "https://baby-shower-invite-f93ae.firebaseapp.com",
+      "null"
     ],
     "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "responseHeader": ["Content-Type", "Authorization", "x-goog-resumable"],
