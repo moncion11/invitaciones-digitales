@@ -1,6 +1,7 @@
 // src/components/admin/InvitationRenderer.tsx
 'use client';
 import { Plantilla, CustomTextField, sanitizeHtml, replaceTemplateVariables, detectCountdownElements, injectCountdownScript } from '@/lib/templates';
+import { format12Hour, formatDateDMY } from '@/lib/utils';
 
 interface Props {
   plantilla: Plantilla;
@@ -28,8 +29,8 @@ export default function InvitationRenderer({
     const fieldMap: Record<string, string> = {
       titulo: eventData.tituloPrincipal || 'Evento Especial',
       nombre: personalizada.nombreBebe || 'Nombre del Bebé',
-      fecha: config.fecha || 'Por definir',
-      hora: config.hora || 'Por definir',
+      fecha: formatDateDMY(config.fecha) || 'Por definir',
+      hora: format12Hour(config.hora) || 'Por definir',
       lugar: config.lugar || 'Por definir',
       mensaje: config.mensaje || '',
       versiculo: personalizada.versiculo || '',
@@ -111,8 +112,8 @@ export default function InvitationRenderer({
     const variables: Record<string, string> = {
       titulo: eventData.tituloPrincipal || '',
       nombre: personalizada.nombreBebe || '',
-      fecha: config.fecha || '',
-      hora: config.hora || '',
+      fecha: formatDateDMY(config.fecha) || '',
+      hora: format12Hour(config.hora) || '',
       lugar: config.lugar || '',
       mensaje: config.mensaje || '',
       versiculo: personalizada.versiculo || '',

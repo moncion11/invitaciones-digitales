@@ -36,6 +36,19 @@ export function formatDateSpanish(dateString: string): string {
   }
 }
 
+export function formatDateDMY(dateString: string): string {
+  if (!dateString) return 'Por definir';
+  try {
+    const date = new Date(dateString + 'T00:00:00');
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  } catch (error) {
+    return dateString;
+  }
+}
+
 export function capitalizeWords(str: string): string {
   if (!str) return '';
   return str
