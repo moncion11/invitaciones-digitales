@@ -140,8 +140,8 @@ export default function InvitationRenderer({
     // Reemplazar variables
     processedHtml = replaceTemplateVariables(processedHtml, variables);
     
-    // Determinar sandbox: agregar allow-scripts solo si hay countdown
-    const sandboxValue = hasCountdown ? 'allow-same-origin allow-scripts' : 'allow-same-origin';
+    // Permitir scripts para CDNs confiables (ya sanitizados) y same-origin para recursos
+    const sandboxValue = 'allow-same-origin allow-scripts';
 
     return (
       <div className="relative w-full flex justify-center">
