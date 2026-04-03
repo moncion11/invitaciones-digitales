@@ -223,14 +223,25 @@ export function sanitizeHtml(html: string): string {
 }
 
 export function replaceTemplateVariables(html: string, variables: Record<string, string>): string {
+  // Variables that contain URLs should not be HTML-escaped
+  const urlFields = new Set(['imagenPrincipal']);
+  
   let result = html;
   for (const [key, value] of Object.entries(variables)) {
-    const escapedValue = value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), escapedValue);
+    let replacementValue: string;
+    if (urlFields.has(key)) {
+      // For URL fields, only sanitize to prevent XSS but preserve URL structure
+      replacementValue = value
+        .replace(/javascript\s*:/gi, '')
+        .replace(/on\w+\s*=/gi, '');
+    } else {
+      replacementValue = value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), replacementValue);
   }
   // Remove any unreplaced variables
   result = result.replace(/\{\{[^}]+\}\}/g, '');
