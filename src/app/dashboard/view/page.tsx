@@ -53,7 +53,9 @@ export default function ClientDashboard() {
         unsubRegalos = onSnapshot(
           collection(db, 'eventos', eventoDoc.id, 'regalos'),
           (snap) => {
-            setRegalos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            list.sort((a: any, b: any) => (a.orden ?? 999) - (b.orden ?? 999) || (a.nombre || '').localeCompare(b.nombre || ''));
+            setRegalos(list);
           }
         );
       } catch (error) {

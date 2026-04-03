@@ -112,6 +112,7 @@ function InvitationContent() {
             seleccionado: false,
             disponible: doc.data().disponible ?? true,
           })) as Gift[];
+          giftsList.sort((a, b) => ((a as any).orden ?? 999) - ((b as any).orden ?? 999) || (a as any).nombre?.localeCompare((b as any).nombre));
           setGifts(giftsList);
           
           if (foundGuest.confirmado) {
