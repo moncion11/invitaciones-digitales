@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   description: "Crea invitaciones digitales interactivas para Baby Shower, Cumpleaños, Bodas, 15 Años, Graduación y más. Confirmación de asistencia y lista de regalos incluida.",
   keywords: "invitaciones digitales, baby shower, cumpleaños, bodas, 15 años, graduación, eventos, RSVP, lista de regalos",
   authors: [{ name: "InvitaDigital" }],
+  icons: {
+    icon: '/logo-pest.svg',
+  },
   openGraph: {
     title: "InvitaDigital | Invitaciones Digitales para Todo Evento",
     description: "Crea invitaciones digitales interactivas para cualquier tipo de evento",

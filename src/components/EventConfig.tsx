@@ -642,7 +642,7 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
           <input
             type="checkbox"
             checked={configPersonalizada?.mostrarPadres !== false}
-            onChange={(e) => handleConfigPersonalizadaChange('mostrarPadres', e.target.checked ? 'true' : 'false')}
+            onChange={(e) => handleConfigPersonalizadaChange('mostrarPadres', e.target.checked)}
             className="w-4 h-4 accent-purple-600"
           />
           <span className="text-sm text-gray-600">Mostrar en invitación</span>

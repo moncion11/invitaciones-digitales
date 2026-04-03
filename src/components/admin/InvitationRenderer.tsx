@@ -34,7 +34,7 @@ export default function InvitationRenderer({
       mensaje: config.mensaje || '',
       versiculo: personalizada.versiculo || '',
       nombreBebe: personalizada.nombreBebe || '',
-      padres: personalizada.mostrarPadres !== 'false' ? (personalizada.padres || '') : '',
+      padres: personalizada.mostrarPadres !== false ? (personalizada.padres || '') : '',
       genero: personalizada.genero || '',
       edad: personalizada.edad || '',
       temaFiesta: personalizada.temaFiesta || '',
