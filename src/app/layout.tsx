@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     siteName: "InvitaDigital",
     images: [
       {
-        url: '/logo-link.svg',
+        url: '/logo_link_v.png',
         width: 1200,
         height: 630,
         alt: 'InvitaDigital - Invitaciones Digitales',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "InvitaDigital | Invitaciones Digitales",
     description: "Crea invitaciones digitales interactivas para cualquier evento",
-    images: ['/logo-link.svg'],
+    images: ['/logo_link_v.png'],
   },
   robots: {
     index: true,
