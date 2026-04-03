@@ -1,14 +1,15 @@
-// src/app/dashboard/[token]/page.tsx
+// src/app/dashboard/_/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format12Hour, formatDateSpanish } from '@/lib/utils';
 
 export default function ClientDashboard() {
-  const params = useParams();
-  const token = params.token as string;
+  const pathname = usePathname();
+  // Extract token from /dashboard/{token} - Firebase rewrites /dashboard/** to /dashboard/_/index.html
+  const token = pathname?.split('/dashboard/')?.[1]?.replace(/\/$/, '').replace(/^_\/?/, '') || '';
 
   const [evento, setEvento] = useState<any>(null);
   const [invitados, setInvitados] = useState<any[]>([]);
@@ -18,6 +19,11 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     let unsubInvitados: (() => void) | null = null;
     let unsubRegalos: (() => void) | null = null;
 
@@ -116,8 +122,6 @@ export default function ClientDashboard() {
 
   return (
     <div className="bg-purple-50 min-h-screen">
-
-      {/* Header */}
       <header className="bg-white border-b border-purple-200">
         <div className="container mx-auto px-4 py-5">
           <div className="flex items-center justify-between">
@@ -135,14 +139,12 @@ export default function ClientDashboard() {
               </p>
             </div>
           </div>
-          {/* Mobile event name */}
           <div className="sm:hidden mt-3 pt-3 border-t border-purple-100">
             <p className="text-lg font-bold text-purple-700">{evento.nombre}</p>
           </div>
         </div>
       </header>
 
-      {/* Navigation Tabs */}
       <nav className="bg-white border-b border-purple-200 sticky top-0 z-10">
         <div className="container mx-auto px-4">
           <div className="flex gap-2 overflow-x-auto py-3">
@@ -177,13 +179,9 @@ export default function ClientDashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-
-        {/* ===== RESUMEN TAB ===== */}
         {activeTab === 'resumen' && (
           <div className="fade-in">
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
                 <div className="flex items-center gap-3 mb-3">
@@ -215,7 +213,6 @@ export default function ClientDashboard() {
               </div>
             </div>
 
-            {/* Event Info */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-purple-200 mb-8">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-purple-600">📅</span> Información del Evento
@@ -242,37 +239,26 @@ export default function ClientDashboard() {
               </div>
               {evento.configuracion?.mapaUrl && (
                 <div className="mt-4">
-                  <a
-                    href={evento.configuracion.mapaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-lg transition font-medium text-sm"
-                  >
+                  <a href={evento.configuracion.mapaUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-lg transition font-medium text-sm">
                     📍 Ver Ubicación en el Mapa
                   </a>
                 </div>
               )}
             </div>
 
-            {/* Confirmation Progress */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-purple-200 mb-8">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-purple-600">📈</span> Progreso de Confirmaciones
               </h2>
               <div className="relative pt-1">
                 <div className="flex mb-2 items-center justify-between">
-                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200">
-                    Confirmados
-                  </span>
-                  <span className="text-xs font-semibold inline-block text-green-600">
-                    {confirmationPercentage}%
-                  </span>
+                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200">Confirmados</span>
+                  <span className="text-xs font-semibold inline-block text-green-600">{confirmationPercentage}%</span>
                 </div>
                 <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-green-100">
-                  <div
-                    style={{ width: `${confirmationPercentage}%` }}
-                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500 transition-all duration-1000 rounded-full"
-                  />
+                  <div style={{ width: `${confirmationPercentage}%` }}
+                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500 transition-all duration-1000 rounded-full" />
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>{confirmados.length} Confirmados</span>
@@ -282,7 +268,6 @@ export default function ClientDashboard() {
               </div>
             </div>
 
-            {/* Recent Guests */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-purple-200">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-purple-600">📋</span> Invitados Recientes
@@ -306,18 +291,14 @@ export default function ClientDashboard() {
                           {inv.regaloSeleccionado && ` • 🎁 ${getGiftName(inv.regaloSeleccionado)}`}
                         </p>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        inv.confirmado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${inv.confirmado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                         {inv.confirmado ? '✅' : '⏳'}
                       </span>
                     </div>
                   ))}
                   {invitados.length > 5 && (
-                    <button
-                      onClick={() => setActiveTab('invitados')}
-                      className="w-full text-center text-purple-600 hover:text-purple-800 text-sm font-medium py-2"
-                    >
+                    <button onClick={() => setActiveTab('invitados')}
+                      className="w-full text-center text-purple-600 hover:text-purple-800 text-sm font-medium py-2">
                       Ver todos ({invitados.length}) →
                     </button>
                   )}
@@ -327,36 +308,26 @@ export default function ClientDashboard() {
           </div>
         )}
 
-        {/* ===== INVITADOS TAB ===== */}
         {activeTab === 'invitados' && (
           <div className="fade-in">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-purple-200">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-purple-600">👥</span> Lista de Invitados
               </h2>
-
-              {/* Filter Pills */}
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
                 {[
                   { id: 'all', label: 'Todos', count: invitados.length },
                   { id: 'confirmed', label: '✅ Confirmados', count: confirmados.length },
                   { id: 'pending', label: '⏳ Pendientes', count: pendientes.length },
                 ].map(filter => (
-                  <button
-                    key={filter.id}
-                    onClick={() => setGuestFilter(filter.id)}
+                  <button key={filter.id} onClick={() => setGuestFilter(filter.id)}
                     className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition ${
-                      guestFilter === filter.id
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
+                      guestFilter === filter.id ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
                     {filter.label} ({filter.count})
                   </button>
                 ))}
               </div>
-
-              {/* Guests Table */}
               {filteredGuests.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p className="text-4xl mb-2">👥</p>
@@ -379,35 +350,25 @@ export default function ClientDashboard() {
                         <tr key={invitado.id} className="border-b border-gray-100 hover:bg-purple-50 transition">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
-                                invitado.confirmado ? 'bg-green-100' : 'bg-purple-100'
-                              }`}>
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${invitado.confirmado ? 'bg-green-100' : 'bg-purple-100'}`}>
                                 {invitado.confirmado ? '✅' : '👤'}
                               </div>
                               <div>
                                 <p className="font-semibold text-gray-900">{invitado.nombre}</p>
-                                {invitado.familia && (
-                                  <p className="text-xs text-gray-500">{invitado.familia}</p>
-                                )}
+                                {invitado.familia && <p className="text-xs text-gray-500">{invitado.familia}</p>}
                               </div>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-gray-600 hidden md:table-cell">{invitado.email || '-'}</td>
                           <td className="py-3 px-4 text-gray-600 hidden md:table-cell">{invitado.telefono || '-'}</td>
                           <td className="py-3 px-4">
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              invitado.confirmado
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-yellow-100 text-yellow-700'
-                            }`}>
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${invitado.confirmado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                               {invitado.confirmado ? '✅ Confirmado' : '⏳ Pendiente'}
                             </span>
                           </td>
                           <td className="py-3 px-4 hidden lg:table-cell">
                             {invitado.regaloSeleccionado ? (
-                              <span className="text-pink-600 font-medium bg-pink-50 px-3 py-1 rounded-full text-sm">
-                                🎁 {getGiftName(invitado.regaloSeleccionado)}
-                              </span>
+                              <span className="text-pink-600 font-medium bg-pink-50 px-3 py-1 rounded-full text-sm">🎁 {getGiftName(invitado.regaloSeleccionado)}</span>
                             ) : (
                               <span className="text-gray-400 text-sm">-</span>
                             )}
@@ -422,10 +383,8 @@ export default function ClientDashboard() {
           </div>
         )}
 
-        {/* ===== REGALOS TAB ===== */}
         {activeTab === 'regalos' && (
           <div className="fade-in">
-            {/* Gift Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-pink-500">
                 <div className="flex items-center gap-3 mb-3">
@@ -449,13 +408,10 @@ export default function ClientDashboard() {
                 <h3 className="text-4xl font-bold text-orange-600">{regalosDisponibles.length}</h3>
               </div>
             </div>
-
-            {/* Gifts Grid */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-purple-200">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-purple-600">🎁</span> Lista de Regalos
               </h2>
-
               {regalos.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p className="text-4xl mb-2">🎁</p>
@@ -466,31 +422,16 @@ export default function ClientDashboard() {
                   {regalos.map((regalo) => {
                     const disponible = regalo.disponible !== false && (regalo.ilimitado || regalo.stock > 0);
                     return (
-                      <div
-                        key={regalo.id}
-                        className={`p-4 rounded-lg border-l-4 ${
-                          disponible
-                            ? 'bg-orange-50 border-orange-500'
-                            : 'bg-gray-50 border-gray-300 opacity-70'
-                        }`}
-                      >
+                      <div key={regalo.id} className={`p-4 rounded-lg border-l-4 ${disponible ? 'bg-orange-50 border-orange-500' : 'bg-gray-50 border-gray-300 opacity-70'}`}>
                         <div className="flex items-start justify-between mb-2">
                           <span className="text-2xl">{regalo.imagen || '🎁'}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            disponible
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${disponible ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
                             {disponible ? 'Disponible' : 'Reservado'}
                           </span>
                         </div>
                         <h4 className="font-bold text-gray-900 text-sm mb-1">{regalo.nombre}</h4>
-                        {regalo.descripcion && (
-                          <p className="text-xs text-gray-500 mb-1">{regalo.descripcion}</p>
-                        )}
-                        <p className="text-xs text-gray-500">
-                          📦 {regalo.ilimitado ? 'Ilimitado' : `Stock: ${regalo.stock}`}
-                        </p>
+                        {regalo.descripcion && <p className="text-xs text-gray-500 mb-1">{regalo.descripcion}</p>}
+                        <p className="text-xs text-gray-500">📦 {regalo.ilimitado ? 'Ilimitado' : `Stock: ${regalo.stock}`}</p>
                       </div>
                     );
                   })}
@@ -501,21 +442,11 @@ export default function ClientDashboard() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="bg-white border-t border-purple-200 mt-12 py-6">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-500 text-sm">
-            Hecho con <span className="text-pink-500">💕</span> para celebrar momentos especiales
-          </p>
-          <p className="text-gray-400 text-xs mt-2">
-            © {new Date().getFullYear()} InvitaDigital. Todos los derechos reservados.
-          </p>
-          <a
-            href="/portafolio"
-            className="inline-block mt-3 text-purple-600 hover:text-purple-800 text-sm font-medium transition"
-          >
-            ← Volver al Portafolio
-          </a>
+          <p className="text-gray-500 text-sm">Hecho con <span className="text-pink-500">💕</span> para celebrar momentos especiales</p>
+          <p className="text-gray-400 text-xs mt-2">© {new Date().getFullYear()} InvitaDigital. Todos los derechos reservados.</p>
+          <a href="/portafolio" className="inline-block mt-3 text-purple-600 hover:text-purple-800 text-sm font-medium transition">← Volver al Portafolio</a>
         </div>
       </footer>
     </div>
