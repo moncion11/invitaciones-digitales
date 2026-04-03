@@ -227,6 +227,17 @@ export function replaceTemplateVariables(html: string, variables: Record<string,
   const urlFields = new Set(['imagenPrincipal']);
   
   let result = html;
+
+  // Process conditional blocks: {{#if variable}}...{{/if variable}}
+  // Removes the entire block if the variable is empty/falsy, keeps content otherwise
+  result = result.replace(
+    /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\s+\1\}\}/g,
+    (_match, key, content) => {
+      const value = variables[key];
+      return value ? content : '';
+    }
+  );
+
   for (const [key, value] of Object.entries(variables)) {
     let replacementValue: string;
     if (urlFields.has(key)) {

@@ -116,7 +116,7 @@ export default function InvitationRenderer({
       lugar: config.lugar || '',
       mensaje: config.mensaje || '',
       versiculo: personalizada.versiculo || '',
-      padres: personalizada.mostrarPadres !== 'false' ? (personalizada.padres || '') : '',
+      padres: personalizada.mostrarPadres !== false ? (personalizada.padres || '') : '',
       genero: personalizada.genero || '',
       edad: personalizada.edad || '',
       temaFiesta: personalizada.temaFiesta || '',
