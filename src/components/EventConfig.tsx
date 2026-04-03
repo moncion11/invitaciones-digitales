@@ -634,15 +634,27 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
     </div>
     
     <div>
-      <label className="block text-gray-900 font-semibold mb-2">
-        Nombres de los Padres
-      </label>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-gray-900 font-semibold">
+          Nombres de los Padres
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={configPersonalizada?.mostrarPadres !== false}
+            onChange={(e) => handleConfigPersonalizadaChange('mostrarPadres', e.target.checked ? 'true' : 'false')}
+            className="w-4 h-4 accent-purple-600"
+          />
+          <span className="text-sm text-gray-600">Mostrar en invitación</span>
+        </label>
+      </div>
       <input
         type="text"
         value={configPersonalizada?.padres || ''}
         onChange={(e) => handleConfigPersonalizadaChange('padres', e.target.value)}
         placeholder="Ej: Juan y María Pérez"
-        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+        disabled={configPersonalizada?.mostrarPadres === 'false'}
+        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 disabled:opacity-50 disabled:bg-gray-100"
       />
     </div>
     
