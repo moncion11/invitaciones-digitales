@@ -1,10 +1,113 @@
 // src/components/EventConfig.tsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { tiposEvento, getTextosPorDefecto } from '@/lib/eventTypes';
 import { useModal } from './Modal';
+
+function ImagenPrincipalUploader({ value, onChange, eventId }: { value: string; onChange: (url: string) => void; eventId: string | null }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !eventId) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Solo se permiten archivos de imagen');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen no puede superar 5MB');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const fileName = `eventos/${eventId}/imagen-principal-${Date.now()}.${ext}`;
+      const storageRef = ref(storage, fileName);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      onChange(url);
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      setError('Error al subir la imagen. Verifica los permisos de Storage.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="mb-6 p-4 bg-white rounded-lg border-2 border-blue-200">
+      <label className="block text-gray-900 font-semibold mb-2">
+        📸 Imagen Principal
+      </label>
+
+      <div className="flex gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || !eventId}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {uploading ? '⏳ Subiendo...' : '📤 Subir Imagen'}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+      </div>
+
+      <input
+        type="url"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="O pega una URL directamente: https://..."
+        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 font-medium placeholder-gray-400"
+      />
+
+      <p className="text-sm text-gray-500 mt-1">
+        💡 Sube una imagen o pega una URL. Usa <code className="bg-gray-100 px-1 rounded">{'{{imagenPrincipal}}'}</code> en tu plantilla HTML.
+      </p>
+
+      {error && (
+        <p className="text-sm text-red-600 mt-2">❌ {error}</p>
+      )}
+
+      {value && (
+        <div className="mt-3">
+          <p className="text-xs text-gray-500 mb-1">Vista previa:</p>
+          <div className="relative inline-block">
+            <img
+              src={value}
+              alt="Vista previa"
+              className="max-h-40 rounded-lg border border-gray-200"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-bold shadow"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   eventId: string | null;
@@ -298,6 +401,13 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
         <p className="text-gray-700 mb-4 text-sm">
           💡 Estos campos son específicos para el tipo de evento seleccionado
         </p>
+
+        {/* Imagen Principal (disponible para todos los tipos) */}
+        <ImagenPrincipalUploader
+          value={configPersonalizada?.imagenPrincipal || ''}
+          onChange={(url) => handleConfigPersonalizadaChange('imagenPrincipal', url)}
+          eventId={eventId}
+        />
 
         {/* Cumpleaños Niños */}
         {tipoEvento === 'cumpleanos-ninos' && (

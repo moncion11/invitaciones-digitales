@@ -123,6 +123,7 @@ export default function InvitationRenderer({
       novioNombre: personalizada.novioNombre || '',
       noviaNombre: personalizada.noviaNombre || '',
       graduadoNombre: personalizada.graduadoNombre || '',
+      imagenPrincipal: personalizada.imagenPrincipal || '',
     };
 
     // Sanitizar primero (elimina scripts del usuario)

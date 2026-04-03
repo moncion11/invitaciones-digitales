@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Imágenes de eventos: lectura pública, escritura pública (ajustar a auth cuando esté listo)
+    match /eventos/{eventId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
