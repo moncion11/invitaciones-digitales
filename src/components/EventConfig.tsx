@@ -227,7 +227,7 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
     }
   };
 
-  const handleConfigPersonalizadaChange = (campo: string, valor: string) => {
+  const handleConfigPersonalizadaChange = (campo: string, valor: string | boolean) => {
     setConfigPersonalizada({ ...configPersonalizada, [campo]: valor });
   };
 
