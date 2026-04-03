@@ -23,11 +23,20 @@ export const metadata: Metadata = {
     type: "website",
     locale: "es_DO",
     siteName: "InvitaDigital",
+    images: [
+      {
+        url: '/logo-link.svg',
+        width: 1200,
+        height: 630,
+        alt: 'InvitaDigital - Invitaciones Digitales',
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "InvitaDigital | Invitaciones Digitales",
     description: "Crea invitaciones digitales interactivas para cualquier evento",
+    images: ['/logo-link.svg'],
   },
   robots: {
     index: true,
