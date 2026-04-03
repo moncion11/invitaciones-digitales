@@ -186,13 +186,17 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveAll = async () => {
     if (!eventId) return;
     
     setSaving(true);
     try {
       const docRef = doc(db, 'eventos', eventId);
       await updateDoc(docRef, {
+        tipoEvento,
+        tituloPrincipal,
+        subtitulo,
+        mensajeBienvenida,
         configuracion: {
           fecha,
           hora,
@@ -201,9 +205,6 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
           mensaje,
           personalizada: configPersonalizada,
         },
-        tituloPrincipal,
-        subtitulo,
-        mensajeBienvenida,
       });
       
       if (onConfigChange) {
@@ -226,28 +227,6 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
     }
   };
 
-  const handleSaveTexts = async () => {
-    if (!eventId) return;
-    
-    setSaving(true);
-    try {
-      const docRef = doc(db, 'eventos', eventId);
-      await updateDoc(docRef, {
-        tipoEvento,
-        tituloPrincipal,
-        subtitulo,
-        mensajeBienvenida,
-      });
-      
-      showAlert('Textos actualizados correctamente', 'success');
-    } catch (error) {
-      console.error('Error updating texts:', error);
-      showAlert('Error al actualizar textos', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleConfigPersonalizadaChange = (campo: string, valor: string) => {
     setConfigPersonalizada({ ...configPersonalizada, [campo]: valor });
   };
@@ -262,14 +241,12 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900">⚙️ Configuración del Evento</h2>
+    <div className="max-w-4xl mx-auto space-y-5">
+      <h2 className="text-2xl font-bold text-gray-900">⚙️ Configuración del Evento</h2>
 
       {/* Tipo de Evento */}
-      <div className="bg-white p-6 rounded-xl shadow-md border-2 border-gray-200">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span className="text-2xl">🎯</span> Tipo de Evento
-        </h3>
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <label className="block text-gray-900 font-semibold mb-2">🎯 Tipo de Evento</label>
         <select
           value={tipoEvento}
           onChange={(e) => {
@@ -279,135 +256,104 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
             setSubtitulo(textos.subtitulo);
             setMensajeBienvenida(textos.bienvenida);
           }}
-          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 font-medium"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
         >
           {tiposEvento.map(tipo => (
-            <option key={tipo.id} value={tipo.id}>
-              {tipo.icono} {tipo.nombre}
-            </option>
+            <option key={tipo.id} value={tipo.id}>{tipo.icono} {tipo.nombre}</option>
           ))}
         </select>
-        <p className="text-sm text-gray-600 mt-2">
-          💡 Al cambiar el tipo de evento, los textos se actualizarán automáticamente
-        </p>
       </div>
 
-      {/* Información Básica */}
-      <div className="bg-white p-6 rounded-xl shadow-md border-2 border-gray-200">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span className="text-2xl">📅</span> Información del Evento
-        </h3>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Fecha del Evento
-            </label>
-            <input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-900 font-medium"
-            />
-          </div>
+      {/* Row: Info + Textos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Información del Evento */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">📅 Información del Evento</h3>
           
-          <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Hora del Evento
-            </label>
-            <input
-              type="time"
-              value={hora}
-              onChange={(e) => setHora(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-900 font-medium"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-gray-700 text-sm font-medium mb-1">Fecha</label>
+              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 text-sm" />
+            </div>
+            <div>
+              <label className="block text-gray-700 text-sm font-medium mb-1">Hora</label>
+              <input type="time" value={hora} onChange={(e) => setHora(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 text-sm" />
+            </div>
           </div>
-          
+
           <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Lugar del Evento
-            </label>
-            <input
-              type="text"
-              value={lugar}
-              onChange={(e) => setLugar(e.target.value)}
-              placeholder="Ej: Salón de Eventos Los Ángeles, Av. Principal #123"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-900 font-medium placeholder-gray-400"
-            />
+            <label className="block text-gray-700 text-sm font-medium mb-1">Lugar</label>
+            <input type="text" value={lugar} onChange={(e) => setLugar(e.target.value)}
+              placeholder="Ej: Salón de Eventos, Av. Principal #123"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 text-sm placeholder-gray-400" />
           </div>
-          
+
           <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Link de Ubicación (Google Maps)
-            </label>
+            <label className="block text-gray-700 text-sm font-medium mb-1">Link de Ubicación</label>
             <div className="flex gap-2">
-              <input
-                type="url"
-                value={mapaUrl}
-                onChange={(e) => setMapaUrl(e.target.value)}
+              <input type="url" value={mapaUrl} onChange={(e) => setMapaUrl(e.target.value)}
                 placeholder="https://maps.app.goo.gl/..."
-                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-900 font-medium placeholder-gray-400"
-              />
-              <button
-                type="button"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 text-sm placeholder-gray-400" />
+              <button type="button"
                 onClick={() => {
-                  if (!lugar) {
-                    showAlert('Primero escribe la dirección del lugar', 'warning');
-                    return;
-                  }
-                  const encodedAddress = encodeURIComponent(lugar);
-                  setMapaUrl(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`);
-                  showAlert('Link de Google Maps generado', 'success');
+                  if (!lugar) { showAlert('Primero escribe la dirección del lugar', 'warning'); return; }
+                  setMapaUrl(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lugar)}`);
+                  showAlert('Link generado', 'success');
                 }}
-                className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition whitespace-nowrap"
-              >
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition whitespace-nowrap">
                 📍 Generar
               </button>
             </div>
-            <p className="text-sm text-gray-500 mt-1">
-              💡 Pega un link de Google Maps o presiona &quot;Generar&quot; para crearlo automáticamente desde la dirección
-            </p>
           </div>
 
           <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Mensaje Personalizado
-            </label>
-            <textarea
-              value={mensaje}
-              onChange={(e) => setMensaje(e.target.value)}
-              rows={4}
+            <label className="block text-gray-700 text-sm font-medium mb-1">Mensaje Personalizado</label>
+            <textarea value={mensaje} onChange={(e) => setMensaje(e.target.value)} rows={2}
               placeholder="Ej: Nos haría muy feliz contar con tu presencia..."
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-none text-gray-900 font-medium placeholder-gray-400"
-            />
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-gray-900 text-sm placeholder-gray-400" />
+          </div>
+        </div>
+
+        {/* Textos de la Invitación */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">✏️ Textos de la Invitación</h3>
+          
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-1">Título Principal</label>
+            <input type="text" value={tituloPrincipal} onChange={(e) => setTituloPrincipal(e.target.value)}
+              placeholder="Ej: ¡Baby Shower!"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 text-sm placeholder-gray-400" />
           </div>
           
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white font-bold py-3 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            {saving ? '⏳ Guardando...' : '💾 Guardar Configuración'}
-          </button>
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-1">Subtítulo</label>
+            <input type="text" value={subtitulo} onChange={(e) => setSubtitulo(e.target.value)}
+              placeholder="Ej: Estás invitado a celebrar la llegada de"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 text-sm placeholder-gray-400" />
+          </div>
+          
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-1">Mensaje de Bienvenida</label>
+            <input type="text" value={mensajeBienvenida} onChange={(e) => setMensajeBienvenida(e.target.value)}
+              placeholder="Ej: y su pequeño tesoro"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 text-sm placeholder-gray-400" />
+          </div>
+
+          {/* Imagen Principal */}
+          <ImagenPrincipalUploader
+            value={configPersonalizada?.imagenPrincipal || ''}
+            onChange={(url) => handleConfigPersonalizadaChange('imagenPrincipal', url)}
+            eventId={eventId}
+          />
         </div>
       </div>
 
       {/* Campos Personalizados por Tipo de Evento */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 p-6 rounded-xl shadow-md">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span className="text-2xl">📝</span> Campos Personalizados
-        </h3>
-        
-        <p className="text-gray-700 mb-4 text-sm">
-          💡 Estos campos son específicos para el tipo de evento seleccionado
-        </p>
-
-        {/* Imagen Principal (disponible para todos los tipos) */}
-        <ImagenPrincipalUploader
-          value={configPersonalizada?.imagenPrincipal || ''}
-          onChange={(url) => handleConfigPersonalizadaChange('imagenPrincipal', url)}
-          eventId={eventId}
-        />
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 space-y-3">
+        <h3 className="font-bold text-gray-900 flex items-center gap-2">📝 Campos Personalizados</h3>
+        <p className="text-gray-500 text-xs">Campos específicos para el tipo de evento seleccionado</p>
 
         {/* Cumpleaños Niños */}
         {tipoEvento === 'cumpleanos-ninos' && (
@@ -800,155 +746,17 @@ export default function EventConfig({ eventId, eventName, configuracion, onConfi
           </div>
         )}
 
-        {/* Guardar configuración personalizada */}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-        >
-          {saving ? '⏳ Guardando...' : '💾 Guardar Campos Personalizados'}
-        </button>
+        {/* Guardar configuración personalizada - removed, using single save */}
       </div>
 
-      {/* Textos Personalizables */}
-      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 p-6 rounded-xl shadow-md">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span className="text-2xl">✏️</span> Textos Personalizables
-        </h3>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Título Principal
-            </label>
-            <input
-              type="text"
-              value={tituloPrincipal}
-              onChange={(e) => setTituloPrincipal(e.target.value)}
-              placeholder="Ej: ¡Baby Shower!"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-900 font-medium placeholder-gray-400"
-            />
-            <p className="text-sm text-gray-700 mt-1">
-              Ej: "¡Baby Shower!", "¡Feliz Cumpleaños!", "¡Nuestra Boda!"
-            </p>
-          </div>
-          
-          <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Subtítulo
-            </label>
-            <input
-              type="text"
-              value={subtitulo}
-              onChange={(e) => setSubtitulo(e.target.value)}
-              placeholder="Ej: Estás invitado a celebrar la llegada de"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-900 font-medium placeholder-gray-400"
-            />
-            <p className="text-sm text-gray-700 mt-1">
-              Ej: "Estás invitado a celebrar la llegada de", "Acompáñanos a celebrar"
-            </p>
-          </div>
-          
-          <div>
-            <label className="block text-gray-900 font-semibold mb-2">
-              Mensaje de Bienvenida
-            </label>
-            <input
-              type="text"
-              value={mensajeBienvenida}
-              onChange={(e) => setMensajeBienvenida(e.target.value)}
-              placeholder="Ej: y su pequeño tesoro"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-900 font-medium placeholder-gray-400"
-            />
-            <p className="text-sm text-gray-700 mt-1">
-              Ej: "y su pequeño tesoro", "los 15 años de", "este momento especial"
-            </p>
-          </div>
-          
-          <button
-            onClick={handleSaveTexts}
-            disabled={saving}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            {saving ? '⏳ Guardando...' : '💾 Guardar Textos'}
-          </button>
-        </div>
-      </div>
-
-      {/* Vista Previa */}
-      <div className="bg-white p-6 rounded-xl shadow-md border-2 border-gray-200">
-  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-    <span className="text-2xl">👁️</span> Vista Previa Completa
-  </h3>
-  
-  <div className="bg-gradient-to-br from-pink-50 via-purple-50 to-pink-50 border-2 border-purple-300 rounded-xl p-6 space-y-4">
-    <div className="text-center space-y-2">
-      <h4 className="text-3xl font-bold text-pink-600">{tituloPrincipal}</h4>
-      <p className="text-gray-900 text-lg">{subtitulo}</p>
-      
-      {/* ✅ CAMBIO: Mostrar nombre del bebé si existe, sino nombre del evento */}
-      <p className="text-2xl font-bold text-purple-600">
-        {configPersonalizada?.nombreBebe || eventName || 'Nombre del Evento'}
-      </p>
-      
-      <p className="text-gray-900 text-lg">{mensajeBienvenida}</p>
-    </div>
-          
-          <div className="border-t-2 border-purple-200 pt-4">
-            <p className="text-center text-gray-700 font-semibold mb-3">📋 Detalles del Evento</p>
-            <div className="space-y-2 text-gray-900">
-              {fecha && (
-                <p className="flex items-center justify-center gap-2 font-medium">
-                  <span className="text-2xl">📅</span> <span><strong>Fecha:</strong> {fecha}</span>
-                </p>
-              )}
-              {hora && (
-                <p className="flex items-center justify-center gap-2 font-medium">
-                  <span className="text-2xl">🕐</span> <span><strong>Hora:</strong> {hora}</span>
-                </p>
-              )}
-              {lugar && (
-                <p className="flex items-center justify-center gap-2 font-medium">
-                  <span className="text-2xl">📍</span> <span><strong>Lugar:</strong> {lugar}</span>
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Vista previa de campos personalizados */}
-          {tipoEvento === 'cumpleanos-ninos' && configPersonalizada?.edad && (
-            <div className="border-t-2 border-purple-200 pt-4 text-center">
-              <p className="text-gray-700 font-semibold mb-2">🎂 ¡{configPersonalizada.edad} Años!</p>
-              {configPersonalizada.temaFiesta && (
-                <p className="text-gray-900"><strong>Tema:</strong> {configPersonalizada.temaFiesta}</p>
-              )}
-            </div>
-          )}
-
-          {tipoEvento === 'boda' && (configPersonalizada?.novioNombre || configPersonalizada?.noviaNombre) && (
-            <div className="border-t-2 border-purple-200 pt-4 text-center">
-              <p className="text-gray-900 font-bold text-xl">
-                {configPersonalizada.novioNombre || 'Novio'} & {configPersonalizada.noviaNombre || 'Novia'}
-              </p>
-              {configPersonalizada.dressCode && (
-                <p className="text-gray-700 mt-2"><strong>Código de Vestimenta:</strong> {configPersonalizada.dressCode}</p>
-              )}
-            </div>
-          )}
-
-          {tipoEvento === 'graduacion' && configPersonalizada?.graduadoNombre && (
-            <div className="border-t-2 border-purple-200 pt-4 text-center">
-              <p className="text-gray-900 font-bold">🎓 {configPersonalizada.graduadoNombre}</p>
-              {configPersonalizada.carrera && (
-                <p className="text-gray-700">{configPersonalizada.carrera}</p>
-              )}
-              {configPersonalizada.institucion && (
-                <p className="text-gray-700">{configPersonalizada.institucion}</p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Single Save Button */}
+      <button
+        onClick={handleSaveAll}
+        disabled={saving}
+        className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white font-bold py-4 px-6 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-lg"
+      >
+        {saving ? '⏳ Guardando todo...' : '💾 Guardar Toda la Configuración'}
+      </button>
     </div>
   );
 }
